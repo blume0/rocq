@@ -518,7 +518,7 @@ Creating Hints
       These flags affect the unification of hints in the database.
       We advise using this just after a :cmd:`Create HintDb` command.
 
-   .. cmd:: Hint Extern @natural {? @one_pattern } => @ltac_expr {? : {+ @ident } }
+   .. cmd:: Hint Extern @natural {? @one_pattern } => @generic_tactic {? : {+ @ident } }
 
       Extends :tacn:`auto` with tactics other than :tacn:`apply` and
       :tacn:`unfold`. :n:`@natural` is the cost, :n:`@one_pattern` is the pattern
@@ -679,10 +679,10 @@ Creating Hints
       argument with ``1``, typeclass resolution succeeds as the second declared mode is matched,
       and instantiates ``x`` with ``11``.
 
-.. cmd:: Hint Rewrite {? {| -> | <- } } {+ @one_term } {? using @ltac_expr } {? : {+ @ident } }
+.. cmd:: Hint Rewrite {? {| -> | <- } } {+ @one_term } {? using @generic_tactic } {? : {+ @ident } }
 
-   :n:`{? using @ltac_expr }`
-     If specified, :n:`@ltac_expr` is applied to the generated subgoals, except for the
+   :n:`{? using @generic_tactic }`
+     If specified, :n:`@generic_tactic` is applied to the generated subgoals, except for the
      main subgoal.
 
    :n:`{| -> | <- }`
@@ -758,10 +758,10 @@ of where these hints are used:
 Setting implicit automation tactics
 -----------------------------------
 
-.. cmd:: Proof with @ltac_expr {? using @section_var_expr }
+.. cmd:: Proof with @generic_tactic {? using @section_var_expr }
 
-   Starts a proof in which :token:`ltac_expr` is applied to the active goals
+   Starts a proof in which :token:`generic_tactic` is applied to the active goals
    after each tactic that ends with `...` instead of the usual single period.
-   ":n:`@tactic...`" is equivalent to ":n:`@tactic; @ltac_expr.`".
+   ":n:`@tactic...`" is equivalent to ":n:`@tactic; @generic_tactic.`".
 
    .. seealso:: :cmd:`Proof` in :ref:`proof-editing-mode`.

@@ -157,16 +157,6 @@ let interp_primitive name = MLMap.find name !primitive_map
 
 (** Name management *)
 
-module FullPath =
-struct
-  type t = full_path
-  let equal = eq_full_path
-  let to_string = string_of_path
-  let repr sp =
-    let dir,id = repr_path sp in
-    id, (DirPath.repr dir)
-end
-
 type tacref = Tac2expr.tacref =
 | TacConstant of ltac_constant
 | TacAlias of ltac_alias
@@ -184,8 +174,8 @@ let equal r1 r2 = compare r1 r2 == 0
 
 end
 
-module KnTab = Nametab.Make(FullPath)(KerName)
-module RfTab = Nametab.Make(FullPath)(TacRef)
+module KnTab = Nametab.Make(KerName)
+module RfTab = Nametab.Make(TacRef)
 module RfMap = Map.Make(TacRef)
 
 type nametab = {
@@ -364,6 +354,10 @@ type var_quotation_kind =
 
 let wit_ltac2_constr = Genarg.make0 "ltac2:in-constr"
 let wit_ltac2_var_quotation = Genarg.make0 "ltac2:quotation"
+let wit_ltac2_tac = Genarg.make0 "ltac2:tactic"
+
+let () = Geninterp.register_val0 wit_ltac2_tac
+    (Some (Geninterp.val_tag (Genarg.topwit Stdarg.wit_unit)))
 
 let is_constructor_id id =
   let id = Id.to_string id in
