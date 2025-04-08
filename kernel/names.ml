@@ -162,7 +162,16 @@ struct
 
   let hash dp = hash 0 dp
 
-  let make x = x
+  let print_list l =
+    print_string "[";
+    List.iter (fun id -> " " ^ Id.to_string id ^ ";" |> print_string) l;
+    print_string "]"
+
+  let make x =
+    if List.length x = 0 then x else begin
+        print_string "HERE:: "; print_list x; print_endline ""; x
+    end
+
   let repr x = x
 
   let empty = []
@@ -195,7 +204,12 @@ struct
       let () = incr seed in
       ans
 
-  let make dir s = (gen(), s, dir)
+  let make dir s =
+    print_string "MAKING MBID: (";
+    print_string @@ Id.to_string s ^ ", ";
+    DirPath.print_list dir;
+    print_endline ")";
+    (gen(), s, dir)
 
   let repr mbid = mbid
 
@@ -280,6 +294,14 @@ module ModPath = struct
     | MPfile sl -> DirPath.to_string sl
     | MPbound uid -> MBId.to_string uid
     | MPdot (mp,l) -> to_string mp ^ "." ^ Label.to_string l
+
+  let rec print' x = match x with
+    | MPfile _ -> print_string @@ "DirPath(" ^ to_string x ^ ")"
+    | MPbound _ -> print_string @@ "MBId(" ^ to_string x ^ ")"
+    | MPdot (mp, l) ->
+       print_string "MPDot(";
+       print' mp;
+       print_string @@ ", " ^ Label.to_string l ^ ")"
 
   let print mp = str (to_string mp)
 
@@ -384,6 +406,10 @@ module KerName = struct
     let refhash = combine (ModPath.hash modpath) (Label.hash knlabel) in
     (* Truncate for backwards compatibility w.r.t. ordering *)
     let refhash = refhash land 0x3FFFFFFF in
+    print_string "MAKING KERNAME: (modpath=";
+    ModPath.print' modpath; print_string ", knlabel=";
+    Label.to_string knlabel |> print_string;
+    print_endline ")";
     { modpath; knlabel; refhash; }
 
   let repr kn = (kn.modpath, kn.knlabel)
@@ -498,7 +524,13 @@ module KerPair = struct
   | Dual (_, kn) -> Same kn
 
   let same kn = Same kn
-  let make knu knc = if KerName.equal knu knc then Same knc else Dual (knu,knc)
+  let make knu knc =
+    if KerName.equal knu knc then Same knc else begin
+      print_string "DISTINCT_KER_PAIR: (user=";
+      print_string  @@ (KerName.to_string knu) ^ ", canonical=";
+      print_endline @@ (KerName.to_string knc) ^ ")";
+      Dual (knu,knc)
+    end
 
   let make1 = same
   let make2 mp l = same (KerName.make mp l)
