@@ -1316,7 +1316,19 @@ end
 
 module Hcaseinfo = Hashcons.Make(CaseinfoHash)
 
-let hcons_caseinfo = Hashcons.simple_hcons Hcaseinfo.generate Hcaseinfo.hcons ()
+let hcons_caseinfo =
+  let impl = Hashcons.simple_hcons Hcaseinfo.generate Hcaseinfo.hcons () in
+  fun ({ci_ind=(name, _); ci_cstr_ndecls; ci_cstr_nargs; _} as ci) ->
+  if Array.(length ci_cstr_nargs <> length ci_cstr_ndecls) then begin
+        print_string "INDUCTIVE INFO: [name=";
+        Format.printf "%a" Pp.pp_with (MutInd.print name);
+        print_string "; nb_bound_vals=(";
+        Array.iter (fun n -> Format.printf " %d," n) ci_cstr_ndecls;
+        print_string "); nb_applied_vals=(";
+        Array.iter (fun n -> Format.printf " %d," n) ci_cstr_nargs;
+        print_endline("). hehe")
+  end else ();
+  impl ci
 
 module Hannotinfo = struct
     type t = Name.t binder_annot

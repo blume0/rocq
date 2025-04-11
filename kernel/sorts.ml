@@ -283,6 +283,7 @@ let make q u =
   | QConstant QProp -> prop
   | QConstant QType -> sort_of_univ u
 
+(* IGUESS : this is not some relevant sorting, but just a thing to have Sets and Maps ? *)
 let compare s1 s2 =
   if s1 == s2 then 0 else
     match s1, s2 with
@@ -294,7 +295,7 @@ let compare s1 s2 =
     | Set, Prop -> 1
     | Set, Set -> 0
     | Set, (Type _ | QSort _) -> -1
-    | Type _, QSort _ -> -1
+    | Type _, QSort _ -> -1 (* otherwise, why this? *)
     | Type u1, Type u2 -> Universe.compare u1 u2
     | Type _, (Prop | Set) -> 1
     | QSort (q1, u1), QSort (q2, u2) ->
