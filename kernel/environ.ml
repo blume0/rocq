@@ -763,7 +763,20 @@ let add_mind_key kn (mind, _ as mind_key) env =
       then Indmap_env.add (kn, i) mip.mind_relevance irr_inds
       else irr_inds) env.irr_inds mind.mind_packets
   in
-  let inductive_hyps = record_global_hyps Mindmap_env.add kn mind.mind_hyps env.inductive_hyps in
+  let inductive_hyps = record_global_hyps Mindmap_env.add kn mind.mind_hyps
+  env.inductive_hyps in
+  let n = Array.length (mind.mind_packets) in
+  Format.printf "ADDING INDUCTIVE : %s which has %d one_body packets.@." (MutInd.to_string kn) n;
+  Array.iter (fun (oib : one_inductive_body) ->
+      let paths = oib.mind_recargs in
+      let pp_recrag = let (+) = Pp.(++) in function
+        | Norec -> Pp.str "Norec"
+        | Mrec (RecArgInd (t, i)) ->
+           Pp.str "REC["+MutInd.print t + Pp.str "(" + Pp.int i + Pp.str ")"+Pp.str "]"
+        | Mrec (RecArgPrim c) -> Pp.str "REC[" + Names.Constant.print c + Pp.str "["
+      in
+      Format.printf "PACKET ?/? : %a@." Pp.pp_with (Rtree.pr_tree pp_recrag paths)
+  ) mind.mind_packets;
   { env with inductive_hyps; irr_inds; env_inductives = new_inds }
 
 let add_mind kn mib env =
