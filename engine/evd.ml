@@ -673,6 +673,8 @@ let add_with_name (type a) ?name ~typeclass_candidate d e (i : a evar_info) = ma
     | _ -> evar_flags
   in
   let candidate_evars = match i.evar_candidates with
+  (* BLUME: does this ↓ mean we can try to declare/replace an aleady existing
+     Evar.t in an evar_map ? *)
   | Undefined None -> Evar.Set.remove e d.candidate_evars
   | Undefined (Some _) -> Evar.Set.add e d.candidate_evars
   in

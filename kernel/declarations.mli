@@ -256,6 +256,7 @@ type recursivity_kind =
 type mutual_inductive_body = {
 
     mind_packets : one_inductive_body array;  (** The component of the mutual inductive block *)
+    (* BLUME : each one_inductive_body packet is one inductive type inside the mutual definition *)
 
     mind_record : record_info; (** The record information *)
 
