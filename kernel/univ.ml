@@ -62,8 +62,13 @@ module UGlobal = struct
 
   let to_string { library = d; process = s; uid = n } =
     DirPath.to_string d ^
-    (if CString.is_empty s then "" else "." ^ s) ^
+    (if CString.is_empty s then ".(none)" else "." ^ s) ^
     "." ^ string_of_int n
+
+  let make l p u =
+    let res = make l p u in
+    print_endline @@ "MAKING GLOBAL UNIVERSE: " ^ (to_string res);
+    res
 
 end
 

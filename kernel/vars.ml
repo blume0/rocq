@@ -20,6 +20,8 @@ exception LocalOccur
 
 (* (closedn n M) raises FreeVar if a variable of height greater than n
    occurs in M, returns () otherwise *)
+(* BLUME: this seems outdated, and looks to originate from commit
+   6f7801f1a40e6f2ad593eb9cdad01e118b10018f *)
 
 let closedn n c =
   let rec closed_rec n c = match Constr.kind c with
@@ -58,9 +60,7 @@ let noccur_between n m term =
  which may contain the CoFix variables. These occurrences of CoFix variables
  are not considered *)
 
-let isMeta c = match Constr.kind c with
-| Constr.Meta _ -> true
-| _ -> false
+let isMeta = Constr.isMeta
 
 let noccur_with_meta n m term =
   let rec occur_rec n c = match Constr.kind c with

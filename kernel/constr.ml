@@ -59,6 +59,18 @@ type case_info =
                                        NOTE: parameters of the inductive type are also excluded from the count *)
     ci_pp_info    : case_printing   (* not interpreted by the kernel *)
   }
+(* BLUME EXAMPLE:
+ * Inductive vec (A : Set) : nat -> Set :=
+ *  | nil (useless : nat := 17) : vec A 0
+ *  | cons : forall i : nat, A -> vec A i -> vec A (S i)
+ * gives
+ * {ci_npar=1; ci_cstr_ndecls=[|1, 3|]; ci_cstr_nargs=[|0, 3|]; _}
+ *)
+(* BLUME misc
+ * Also discovered from tests: a mutual inductive definition takes the name of the
+ * first defined inductive type.
+ *)
+
 
 (********************************************************************)
 (*       Constructions as implemented                               *)
@@ -119,6 +131,7 @@ type constr = t
 type types = constr
 
 type existential = existential_key * constr SList.t
+(* BLUME : same as [constr pexistential] *)
 
 type case_invert = constr pcase_invert
 type case_return = (types,Sorts.relevance) pcase_return
@@ -1318,15 +1331,15 @@ module Hcaseinfo = Hashcons.Make(CaseinfoHash)
 
 let hcons_caseinfo =
   let impl = Hashcons.simple_hcons Hcaseinfo.generate Hcaseinfo.hcons () in
-  fun ({ci_ind=(name, _); ci_cstr_ndecls; ci_cstr_nargs; _} as ci) ->
-  if Array.(length ci_cstr_nargs <> length ci_cstr_ndecls) then begin
-        print_string "INDUCTIVE INFO: [name=";
-        Format.printf "%a" Pp.pp_with (MutInd.print name);
-        print_string "; nb_bound_vals=(";
+  fun ({ci_ind=(name, i); ci_cstr_ndecls; ci_cstr_nargs; _} as ci) ->
+  if not @@ Array.equal (=) ci_cstr_nargs ci_cstr_ndecls then begin
+        print_string "INTERESTING INDUCTIVE INFO: [name=";
+        Format.printf "%a.%d" Pp.pp_with (MutInd.print name) i;
+        Format.printf "; nb_bound_vals=(";
         Array.iter (fun n -> Format.printf " %d," n) ci_cstr_ndecls;
-        print_string "); nb_applied_vals=(";
+        Format.printf "); nb_applied_vals=(";
         Array.iter (fun n -> Format.printf " %d," n) ci_cstr_nargs;
-        print_endline("). hehe")
+        Format.printf ("). hehe@.")
   end else ();
   impl ci
 
