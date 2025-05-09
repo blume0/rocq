@@ -18,10 +18,7 @@ module RelDecl = Context.Rel.Declaration
 
 exception LocalOccur
 
-(* (closedn n M) raises FreeVar if a variable of height greater than n
-   occurs in M, returns () otherwise *)
-(* BLUME: this seems outdated, and looks to originate from commit
-   6f7801f1a40e6f2ad593eb9cdad01e118b10018f *)
+(* (closedn n M) is true iff M is a (de Brujin) closed term under n binders *)
 
 let closedn n c =
   let rec closed_rec n c = match Constr.kind c with

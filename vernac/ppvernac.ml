@@ -428,7 +428,7 @@ let pr_onescheme (idop, {sch_type; sch_qualid; sch_sort}) =
     | SchemeElimination ->  keyword "Elimination for"
     | SchemeCase -> keyword "Case for" in
   hov 0 str_identifier ++ spc () ++ hov 0 (str_scheme ++ spc() ++ pr_smart_global sch_qualid)
-    ++ spc () ++ hov 0 (keyword "Sort" ++ spc() ++ Sorts.pr_sort_family sch_sort)
+    ++ spc () ++ hov 0 (keyword "Sort" ++ spc() ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr sch_sort)
 
 let pr_equality_scheme_type sch id =
   let str_scheme = match sch with
@@ -658,6 +658,8 @@ let pr_printable = function
       else str "Without Constraint Sources"
     in
     keyword cmd ++ pr_opt pr_subgraph g ++ pr_opt pr_with_src with_sources ++ pr_opt str fopt
+  | PrintSorts ->
+    keyword "Print Sorts"
   | PrintName (qid,udecl) ->
     keyword "Print" ++ spc()  ++ pr_smart_global qid ++ pr_full_univ_name_list udecl
   | PrintModuleType qid ->
@@ -978,6 +980,11 @@ let pr_synpure_vernac_expr v =
   | VernacUniverse v ->
     return (
       hov 2 (keyword "Universe" ++ spc () ++
+             prlist_with_sep (fun _ -> str",") pr_lident v)
+    )
+  | VernacSort v ->
+    return (
+      hov 2 (keyword "Sort" ++ spc () ++
              prlist_with_sep (fun _ -> str",") pr_lident v)
     )
   | VernacConstraint v ->

@@ -444,7 +444,7 @@ let (objConstant : (Id.t * constant_obj) Libobject.Dyn.tag) =
   declare_named_object_full { (default_object "CONSTANT") with
     cache_function = cache_constant;
     load_function = load_constant;
-    open_function = simple_open open_constant;
+    open_function = filtered_open open_constant;
     classify_function = classify_constant;
     subst_function = ident_subst_function;
     discharge_function = discharge_constant }
@@ -746,7 +746,7 @@ let declare_variable ~name ~kind ~typing_flags d =
           Global.push_section_context uctx;
           let mk_anon_names u =
             let qs, us = UVars.Instance.to_array u in
-            Array.make (Array.length qs) Anonymous, Array.make (Array.length us) Anonymous
+            {UVars.quals = Array.make (Array.length qs) Anonymous; UVars.univs = Array.make (Array.length us) Anonymous}
           in
           Global.push_section_context
             (UVars.UContext.of_context_set mk_anon_names Sorts.QVar.Set.empty body_uctx);
@@ -2167,7 +2167,7 @@ let update_sigma_univs ugraph p =
 
 let next = let n = ref 0 in fun () -> incr n; !n
 
-let by tac = map_fold ~f:(Proof.solve (Goal_select.SelectNth 1) None tac)
+let by tac = map_fold ~f:(Proof.solve (Goal_select.select_nth 1) None tac)
 
 let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in

@@ -702,6 +702,11 @@ let print_universes { sort; subgraph; with_sources; file; } =
   | Some s -> dump_universes_gen (fun u -> Pp.string_of_ppcmds (prl u)) univ s
   end
 
+let print_sorts () =
+  let qualities = Sorts.QVar.Set.elements (Global.qualities ()) in
+  let prq = UnivNames.pr_quality_with_global_universes in
+  Pp.prlist_with_sep Pp.spc prq qualities
+
 (*********************)
 (* "Locate" commands *)
 
@@ -1330,6 +1335,13 @@ let vernac_universe ~poly l =
                   str "use Monomorphic Universe instead.");
   DeclareUniv.do_universe ~poly l
 
+let vernac_sort ~poly l =
+  if poly && not (Lib.sections_are_opened ()) then
+    user_err
+                 (str"Polymorphic sorts can only be declared inside sections, " ++
+                  str "use #[universes(polymorphic=no)] Sort in order to declare a global sort.");
+  DeclareUniv.do_sort ~poly l
+
 let vernac_constraint ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
     user_err
@@ -1371,14 +1383,14 @@ let add_subnames_of ?loc len n ns full_n ref =
     let ns = Array.fold_left_i (fun j ns _ -> add1 (ConstructRef ((mind,i),j+1)) ns)
         ns mip.mind_consnames
     in
-    List.fold_left (fun ns f ->
-        let s = Indrec.elimination_suffix f in
+    List.fold_left (fun ns q ->
+        let s = Indrec.elimination_suffix q in
         let n_elim = Id.of_string (Id.to_string mip.mind_typename ^ s) in
         match importable_extended_global_of_path ?loc (Libnames.add_path_suffix path_prefix n_elim) with
         | exception Not_found -> ns
         | None -> ns
         | Some ref -> (len, ref) :: ns)
-      ns Sorts.all_families
+      ns UnivGen.QualityOrSet.all
 
 let interp_names m ns =
   let dp_m = Nametab.path_of_module m in
@@ -1949,20 +1961,24 @@ let () =
       optwrite = (fun b -> Constrextern.print_universes:=b) }
 
 let () =
-  declare_bool_option
+  (* no summary: handled as part of the debug state *)
+  declare_option ~no_summary:true ~kind:BoolKind
     { optstage = Summary.Stage.Interp;
-      optdepr  = None;
+      optdepr  = Some (Deprecation.make ~since:"9.1" ~note:"Set Debug \"vmbytecode\" instead." ());
       optkey   = ["Dump";"Bytecode"];
-      optread  = (fun () -> !Vmbytegen.dump_bytecode);
-      optwrite = (:=) Vmbytegen.dump_bytecode }
+      optread  = (fun () -> CDebug.get_flag Vmbytegen.dump_bytecode_flag);
+      optwrite = (fun b -> CDebug.set_flag Vmbytegen.dump_bytecode_flag b);
+    }
 
 let () =
-  declare_bool_option
+  (* no summary: handled as part of the debug state *)
+  declare_option ~no_summary:true ~kind:BoolKind
     { optstage = Summary.Stage.Interp;
-      optdepr  = None;
+      optdepr  = Some (Deprecation.make ~since:"9.1" ~note:"Set Debug \"vmlambda\" instead." ());
       optkey   = ["Dump";"Lambda"];
-      optread  = (fun () -> !Vmlambda.dump_lambda);
-      optwrite = (:=) Vmlambda.dump_lambda }
+      optread  = (fun () -> CDebug.get_flag Vmlambda.dump_lambda_flag);
+      optwrite = (fun b ->  CDebug.set_flag Vmlambda.dump_lambda_flag b);
+    }
 
 let () =
   declare_bool_option
@@ -2072,7 +2088,7 @@ let get_current_context_of_args ~pstate =
 
 let query_command_selector ?loc = function
   | None -> None
-  | Some (Goal_select.SelectNth n) -> Some n
+  | Some (Goal_select.SelectList [NthSelector n]) -> Some n
   | _ -> user_err ?loc
       (str "Query commands only support the single numbered goal selector.")
 
@@ -2243,6 +2259,7 @@ let vernac_print =
     Prettyp.print_canonical_projections env sigma grefs
   | PrintUniverses prunivs -> no_state @@ fun ()->
     print_universes prunivs
+  | PrintSorts -> no_state print_sorts
   | PrintHint r -> with_proof_env @@ fun env sigma ->
     Hints.pr_hint_ref env sigma (smart_global r)
   | PrintHintGoal -> with_pstate @@ fun ~pstate ->
@@ -2402,8 +2419,8 @@ let vernac_subproof gln ~pstate =
   Declare.Proof.map ~f:(fun p ->
     match gln with
     | None -> Proof.focus subproof_cond () 1 p
-    | Some (Goal_select.SelectNth n) -> Proof.focus subproof_cond () n p
-    | Some (Goal_select.SelectId id) -> Proof.focus_id subproof_cond () id p
+    | Some (Goal_select.SelectList [NthSelector n]) -> Proof.focus subproof_cond () n p
+    | Some (Goal_select.SelectList [IdSelector id]) -> Proof.focus_id subproof_cond () id p
     | _ -> user_err
              (str "Brackets do not support multi-goal selectors."))
     pstate
@@ -2682,6 +2699,9 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         vernac_combined_scheme id l ~locmap:(Ind_tables.Locmap.default loc))
   | VernacUniverse l ->
     vtdefault(fun () -> vernac_universe ~poly:(only_polymorphism atts) l)
+
+  | VernacSort l ->
+    vtdefault(fun () -> vernac_sort ~poly:(only_polymorphism atts) l)
 
   | VernacConstraint l ->
     vtdefault(fun () -> vernac_constraint ~poly:(only_polymorphism atts) l)

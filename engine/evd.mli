@@ -365,6 +365,8 @@ val downcast : Evar.t-> etypes -> evar_map -> evar_map
 
 val evar_ident : Evar.t -> evar_map -> Id.t option
 
+val evar_has_ident : Evar.t -> evar_map -> bool
+
 val rename : Evar.t -> Id.t -> evar_map -> evar_map
 
 val evar_key : Id.t -> evar_map -> Evar.t
@@ -629,8 +631,8 @@ val update_sigma_univs : UGraph.t -> evar_map -> evar_map
 
 (** Polymorphic universes *)
 
-val fresh_sort_in_family : ?loc:Loc.t -> ?rigid:rigid
-  -> evar_map -> Sorts.family -> evar_map * esorts
+val fresh_sort_in_quality : ?loc:Loc.t -> ?rigid:rigid
+  -> evar_map -> UnivGen.QualityOrSet.t -> evar_map * esorts
 val fresh_constant_instance : ?loc:Loc.t -> ?rigid:rigid
   -> env -> evar_map -> Constant.t -> evar_map * pconstant
 val fresh_inductive_instance : ?loc:Loc.t -> ?rigid:rigid
