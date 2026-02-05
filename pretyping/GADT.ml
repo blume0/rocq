@@ -199,29 +199,6 @@ module Monad = struct
     let eq :
     type a b p q . (a, b) Eq.t -> (p, q) Eq.t -> ((a, p) M.t, (b, q) M.t) Eq.t =
     fun Refl Refl -> Refl
-
-(*
-    let rec list_map : type a b p .
-          (a -> (b, p) M.t) -> a list -> (b list, p) M.t =
-    fun f l ->
-      let open M.Ops in
-      match l with
-      | [] -> return []
-      | h :: t ->
-          let* h' = f h in
-          let* t' = list_map f t in
-          return (h' :: t')
-
-    let option_map : type a b p .
-          (a -> (b, p) M.t) -> a option -> (b option, p) M.t =
-    fun f o ->
-      let open M.Ops in
-      match o with
-      | None -> return None
-      | Some x ->
-          let* x' = f x in
-          return (Some x')
-*)
   end
 
   module Map = struct
@@ -263,13 +240,14 @@ module Monad = struct
 
   module Option = OptionT (Map)
 
-  module StateT (M : S) = struct
+
+  module StateT (M : S) (* WA You can type StateT M : S anywhere but we still need to look at its StateT.t definition *) = struct
     module Self = struct
       type ('a, 'state) t = 'state -> ('state * 'a, 'state) M.t
 
       module Ops = struct
-       let return x s =
-         M.Ops.return (s, x)
+       let return (x : (* WA *) 'a) =
+         fun (s : (* WA *) 'state) -> M.Ops.return (s, x)
 
        let ( let* ) x f s =
          let open M.Ops in
@@ -422,6 +400,20 @@ module Nat = struct
     end
   | _ -> None
 
+  (* WA just trying to understand GADTs *)
+  type ('a, 'b) ortype = L of 'a | R of 'b
+  let rec tuip : type a b c. a t -> b t -> (((a, b) Eq.t), ((a,b) Eq.t -> c)) ortype =
+  fun n m ->
+  match n, m with
+  | O, O -> L Refl
+  | S n, S m ->
+    begin match tuip n m with
+    | R f -> R (fun Refl -> f Refl)
+    | L Refl -> L Refl
+    end
+  | S n, O -> R (fun e -> match e with _ -> .)
+  | O, S n -> R (fun e -> match e with _ -> .)
+
   let of_int ?accu n =
     let rec aux : type a . a t -> int -> exists = fun accu n ->
       if n > 0 then
@@ -480,6 +472,7 @@ module Nat = struct
 
   let to_plus : type a b . a t -> (a, b) to_plus = fun a ->
     Exists (Obj.magic a)
+  (* WA this should also be "%identity" no ? as (a, b) to_plus is (a, b, c) plus in memory which is a t in memory *)
 
 (*
   let rec plus_shift :
@@ -852,6 +845,31 @@ module Vector = struct
      | [] -> l1
      | hd :: tl -> hd :: append_section tl l1
 
+
+  (* WA trying to understand sections and all *)
+  let rec shift_one_section : type a l0 l1.
+    (a, l0, l1) section -> (a, l0 Nat.succ, l1 Nat.succ) section = fun s ->
+    match s with
+    | [] -> []
+    | a::b -> a :: shift_one_section b
+  let rec shift_section : type a l0 l1 d l0' l1'.
+     (a, l0, l1) section -> (d, l0, l0') Nat.plus -> (d, l1, l1') Nat.plus -> (a, l0', l1') section = fun s d0 d1 ->
+    match d0, d1 with
+    | Zero_l, Zero_l -> s
+    | Succ_plus d0, Succ_plus d1 ->
+       let s' = shift_section s d0 d1 in
+       shift_one_section s'
+  let append' : type l0 l1 .
+      ('a, l0) t -> ('a, l1) t -> ('a, l0, l1) append =
+  fun s1 s2  ->
+    let Exists p1 = Nat.to_plus (length s1) in
+    let Exists p2 = Nat.to_plus (length s1) in
+    let Exists {sum = p3; plus = p4} = Nat.add (length s1) (length s2) in
+    let Refl = Nat.plus_fun (Nat.zero_r (length s1)) p2 in
+    let Refl = Nat.plus_fun p1 p4 in
+    let s = append_section (shift_section s2 p1 p2) s1 in
+    Exists { vector = s; plus = p4 }
+
   let rec mapi_aux :
   type i l l' . i Nat.t -> l' Nat.t -> (i, l', l) Nat.plus ->
     (l Fin.t -> 'a -> 'b) -> ('a, l') t -> ('b, l') t =
@@ -897,6 +915,15 @@ module Vector = struct
     | Zero_l, hd :: _ -> hd
     | Succ_plus plus, _ :: tl ->
         get_aux plus tl
+    | _ -> .
+
+  (* WA alternative get with Fin.t *)
+  let rec get : type l. l Fin.t -> ('a, l) t -> 'a = fun
+      (Exists plus) l ->
+    match plus, l with
+    | Zero_l, hd :: _ -> hd
+    | Succ_plus plus, _ :: tl ->
+        get (Exists plus) tl
     | _ -> .
 
   module Ops = struct
@@ -973,6 +1000,20 @@ module Vector = struct
           diff_a = Succ_plus tl.diff_a;
           diff_b = Succ_plus tl.diff_b }
 
+  (* WA *)
+  let append : type l0 l1 .
+      ('a, l0) t -> ('a, l1) t -> ('a, l0, l1) append =
+  fun s1 s2  ->
+    (* let Exists p1 = Nat.to_plus (length s1) in *)
+    (* let Exists p2 = Nat.to_plus (length s1) in *)
+    (* let Exists {sum = p3; plus = p4} = Nat.add (length s1) (length s2) in *)
+    (* let Refl = Nat.plus_fun (Nat.zero_r (length s1)) p2 in *)
+    (* let Refl = Nat.plus_fun p1 p4 in *)
+    let Exists {section = some_s; diff_a=a; diff_b=b} = (replace s2 (* : ('a, l1, _, l0) replace *)) in
+    let Refl = Nat.plus_fun (Nat.zero_r (Nat.plus_l a)) a in
+    let s = append_section some_s s1 in
+    Exists { vector = s; plus = Nat.plus_commut (length s1) b}
+
 end
 
 module Env = struct
@@ -984,7 +1025,11 @@ module Env = struct
       ((a * c) t, (b * d) t) Eq.t = fun _ _ -> transtype
 *)
 
+  (* WA Natural numbers axioms *)
+
   let zero_l : type env . ((Nat.zero * env) t, env t) Eq.t = transtype
+  (* WAA Shouldn't transtype be hidden from Env callers here ? Othewise Env.transtype
+     trivialises all reasoning *)
 
   let zero_r : type env . ((env * Nat.zero) t, env t) Eq.t = transtype
 
@@ -1005,6 +1050,20 @@ module Env = struct
   let plus :
     type a b . (a, b, 'c) Nat.plus -> ((a * b) t, 'c t) Eq.t =
   fun _ -> transtype
+
+  (* WA just trying to find the minimal axioms and what can be derived *)
+  let zero_r_bad : type n. n Nat.t -> ((n*Nat.zero) t, n t) Eq.t = fun n ->
+    plus (Nat.zero_r n)
+  let rec plus : type a b c. (a, b, c) Nat.plus -> ((a*b) t, c t) Eq.t =
+    fun p -> match p with
+             | Zero_l -> zero_l
+             | Succ_plus (p') ->
+                let h = plus p' in
+                let h = morphism (Refl : (Nat.one t, Nat.one t) Eq.t) h in
+                let h = Eq.trans assoc h in
+                let h = Eq.trans (morphism (Eq.sym rev_succ) Refl) h in
+                let h = Eq.trans h rev_succ in
+                h
 
   let rev_plus :
     type a b . (a, b, 'c) Nat.plus -> ((b * a) t, 'c t) Eq.t =
@@ -1222,6 +1281,7 @@ module Tuple = struct
   end
 end
 
+(* WA UNUSED *)
 module type Type = sig
   type t
 end
@@ -1296,6 +1356,7 @@ module Lift = struct
 
   let shift (type n a b) (n : n Height.t) (l : (a * n, b) t) : (a, b) t =
     Eq.(cast (sym (Height.eq ^-> eq ^-> eq))) Esubst.el_shft n l
+  (* WATODO: this seems ill typed *)
 
   let ( & ) = shift
 

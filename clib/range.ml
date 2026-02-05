@@ -8,6 +8,13 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+
+(** Skew binary random access lists
+    See https://dl.acm.org/doi/10.1145/224164.224187 for a comprehensive presentation and study of this implementation
+    (WATODO MAYBE COMMIT A COMMENT LIKE THIS?)
+*)
+
+
 type 'a tree =
 | Leaf of 'a
 | Node of 'a * 'a tree * 'a tree

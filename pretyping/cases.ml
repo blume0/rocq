@@ -660,6 +660,18 @@ module AnnotatedVector = struct
 end
 
 module InductiveFamily = struct
+  (* WA
+     - 'ind est un type phantome sans intérprétation, avec comme axiome que ('ind InductiveDef.t = 'ind' InductiveDef.t)
+       si les deux objets concrets (des identifiants) sont égaux. Si j'ai bien compris c'est juste une façon de transporter
+       l'égalité physique entre deux objets en une égalité au niveau des types phantomes.
+       En particulier, on peut avoir l'invariant plus bas de ind_fun qui assure que deux éléments ont les mêmes arités
+       dès que 'ind = ind' (avec le fait que lookup renvoie le meme résultat pour les memes noms et tant qu'on a pas fait
+       n'importe quoi (WATODO: comment le ne pas avoir fait n'imp peut être vérifié dans l'utilisation d'ici?).
+     - 'env est la taille l'environement d'instantiation des paramètres
+     - 'params est le nombre de paramètres, avec params le vecteur de paramètres effectives
+     - nrealargs et nrealdecls: Pour 'Inductive I (A:◻) (B:◻) : (C:◻) -> (D:◻:=Nat) -> (E:◻) -> ◻', on a 3 realargs en
+       C, D et E, et on a 2 realdecls C et E.
+  *)
   type ('env, 'ind, 'params, 'nrealargs, 'nrealdecls) t = {
       def : 'ind InductiveDef.t Univ.puniverses;
       params : ('env Term.t, 'params) Vector.t;
@@ -950,7 +962,7 @@ module Pattern = struct
     | Var : ('size Nat.succ, 'size) desc
     | Cstr : {
       cstr : Constructor.exists;
-      args : ('length, 'size, 'size_tail Nat.succ) args;
+      args : ('length, 'size, 'size_tail (* WA: because of the as/name introduced in desc ?*)Nat.succ) args;
     } -> ('size, 'size_tail) desc
   and ('length, 'size, 'size_tail) args =
     | [] : (Nat.zero, 'size, 'size) args
@@ -1276,7 +1288,7 @@ module Pattern = struct
         let Exists args =
           Vector.of_list (List.map (fun arg -> true, arg) args) in
         let Exists { args; terms } =
-          of_terms_rec env sigma args (term :: terms) in
+          of_terms_rec env sigma args (term(*WA pour la clause as*)::terms) in
         let pattern = cstr (Exists ctr) args in
         Exists { pattern; terms }
     | None ->
@@ -1302,6 +1314,7 @@ module Pattern = struct
             Exists { pattern; terms = hd :: terms } in
         Exists { args = pattern :: args; terms }
 
+  (* WA: maximal index extension  //// split pattern linear *)
   let of_terms (type env length)
       (env : env Env.t) (sigma : Evd.evar_map)
       (terms : (bool * env ETerm.t, length) Vector.t) :
@@ -1471,11 +1484,17 @@ module type IndSizedTypeS = sig
   val height : ('env, 'ind, 'size) t -> 'size Height.t
 end
 
-module IndSizeAnnotation (S : Type3S) = struct
+module IndSizeAnnotation (S : Type3S) (* : AnnotationS but more than that [WA] *) = struct
   type ('env, 'annot, 'annot_tail) t =
       I : ('env, 'ind, 'size) S.t ->
         ('env, < ind: 'ind * 'ind_tail; size: 'size * 'size_tail>,
          <ind: 'ind_tail; size: 'size_tail>) t
+(* WA: why not some ('env, 'ind_plus_tail, 'size_plus_tail, 'ind_tail, 'size_tail) ? *)
+(* Possible explanation:
+     Because this module extends the module type AnnotationS expecting a ('env, 'ind, 'size) t
+   Followup question: why not ('env, 'ind_plus*'size_plus, 'ind_tail*'size_tail) ?
+                      only for clarity or would some information be lost here ?
+*)
 
   type 'env unit_annot = <ind: unit; size: Nat.zero>
 end
@@ -1841,6 +1860,7 @@ module Rhs = struct
       return_pred : ('env * 'nrealdecls) ETerm.t;
       matches : (('env * 'nrealdecls) ETerm.t, 'matches) Vector.t;
     }
+  (* WATODO *)
 
   type ('env, 'matches, 'nrealdecls, 'nrealargs) f =
       ('env, 'matches, 'nrealdecls, 'nrealargs) args ->
@@ -1858,7 +1878,7 @@ module Rhs = struct
     }
 
   type ('env, 'length, 'matched, 'matches) desc = {
-      matches : ('env ETerm.t, 'matched) Vector.t;
+      matches : ('env ETerm.t, 'matched) Vector.t; (* WATODO when is this used ? *)
       cont : ('env, 'length, 'matched, 'matches) cont;
     }
 
@@ -1869,7 +1889,7 @@ module Rhs = struct
   type ('env, 'nrealdecls) untyped_args = {
       globenv : ('env * 'nrealdecls) GlobalEnv.t;
       return_pred : ('env * 'nrealdecls) ETerm.t;
-    }
+    } (* WATODO untyped args *)
 
   type ('env, 'nrealdecls) untyped_f =
       ('env, 'nrealdecls) untyped_args ->
@@ -4281,6 +4301,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       Format.eprintf "env: %a@."
         Pp.pp_with (Env.print (GlobalEnv.env env));
 *)
+      (* WA *)
       let* generalize_context =
         EvarMapMonad.use (fun sigma ->
         generalize_context_of_binders (GlobalEnv.env env) sigma
@@ -4394,9 +4415,11 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
   end
 
   let compile_destruct
+  (*WA : here is the general case compilation (5.1.4 of the draft) *)
       (type env ind params nrealargs nrealdecls tail_length ind_tail eqns_length
         tail_height previously_bounds)
       (tomatch : (env, ind TomatchType.some, nrealdecls Nat.succ) Tomatch.t)
+      (* WA tomatch: a well scoped term and its type, its inductive type name and its number of indices, and its effective indices *)
       (tomatch_type :
         (env, ind, params, nrealargs, nrealdecls) TomatchType.desc)
       (problem :
@@ -4562,10 +4585,10 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     match
       (V.map Clause.extract_pat_var problem.eqns, problem.eqns),
       tomatch.inductive_type
-    with
-    | (None, _ | Some _, []), Inductive desc ->
+    with (* WA  now we are also here here *)
+    | (None (* WA it is NOT a variable *), _ | Some _, [] (* WA It is a variable but on an expected empty type*)), Inductive desc ->
        if problem.allow_destruct_empty then
-        compile_destruct tomatch desc { problem with allow_destruct_empty = false }
+        compile_destruct tomatch desc { problem with allow_destruct_empty = true (* WATODO HACK: find why we destruct twice on empty *) }
        else
          assert false
     | (Some vars, _), _ ->
@@ -4594,6 +4617,13 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     | I tomatch :: _ ->
         compile_case tomatch problem
 
+  (* WA: at this point we have
+     - recognized pattern structure for the inductive indices of each tomatch (stored in the tomatches vector)
+     - the return_pred !!NOT DEPENDING ON THE DEEP PATTERN STRUCTURE FOR NOW!!
+     - return_pred_context which is the extended context for the deep patterns (WA right?)
+     And we want to construct the small-inversion return predicate which filters out against the in clause pattern structure
+     and gives either the original return predicate or True.
+  *)
   let make_inverted_return_pred
       (type env ind length return_pred_height)
       (env : env GlobalEnv.t)
@@ -4605,9 +4635,10 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (env * return_pred_height) ETerm.t EvarMapMonad.t =
     let open EvarMapMonad.Ops in
     let* subenv = push_rel_context_m (Exists context.context) env in
+    (* WA: Prepare the two equations returning either R or True *)
     let module EqnLength = struct type t = Nat.one Nat.succ end in
     let module T = TypeTomatch (EqnLength) in
-    let tomatches_vector =
+    let tomatches_vector = (* WA: Vector of every variable in the in clause ?*)
       context.context.context |>
       ERelContext.to_rel_vector |>
       Vector.rev |>
@@ -4623,6 +4654,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         | Inductive { pattern_structure = Exists { args; _ }; _ } ->
             Nat.to_int (Pattern.size_of_args args O),
             Vector.map (
+              (* Here we create a vector of two clause left hand sides: one corresponding exactly to the pattern structure
+                 of the inductive, and the other is just a variable for the remaining case *)
               fun pattern ->
                 Vector.[
                   pattern;
@@ -4633,6 +4666,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       Vector.of_list (List.flatten (List.map snd patterns_list)) in
     let Refl = Option.get (Nat.is_eq (Vector.length patterns)
       (Vector.length tomatches_vector)) in
+    (* WA: Below, tomatches is the substitution *)
     let tomatches = Vector.join tomatches_vector patterns in
     let* Exists tomatches = T.type_tomatches subenv tomatches in
     let module V = T.PrepareTomatch.TomatchWithContextVector in
@@ -4725,12 +4759,36 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
           Pattern.Ops.(pats.%(i)) in
         return (tuple, Vector.map get_pats pats)) in
     let* Exists tomatches = T.type_tomatches env tomatches in
+    (* WA At this step we get an annotated vector with a length of tomatch_count
+       Each element is a pair of:
+       - a Tomatch.t which carries (well scoped) data of:
+         - judgement for the to tomatch of the form (t : T),
+         - information on the inductive type (if T ≡ I ω) in the form of TomatchType.t carrying the data of:
+           - The name I of the inductive together with the type-correct-sized effective ω vector  (IntudctiveType.t)
+           - The pattern structure of the indctive together with its context of types of variable leafs
+       - a vector of `('env, 'ind) TypedPattern.exists` listing the patterns for each clause
+    *)
     let eqns =
       T.PrepareTomatch.TomatchWithContextVector.to_clauses env eqns tomatches in
     let tomatches =
       T.PrepareTomatch.TomatchWithContextVector.to_tomatch_vector tomatches in
+    (* WA At this step we have repacked the equations and matches as follows
+       - tomatches is now a vector of Tomatch.t (in which we have dropped the branches' patterns from the preceding tomatches)
+       - eqns is now a vector of typed Clause.t, in which the right hand side is a Rhs.t in which the .f closure takes
+         the number of declared variables' as arguments to return the correct rhs
+    *)
+    Format.eprintf "Preparing the return pred context@.";
     let Exists return_pred_context =
       TomatchVector.make_return_pred_context tomatches in
+    (* Now return_pret_context is the ""concatenation"" of all the pattern-contexts for the inductives. It is the context
+       of the in clause with genertalized deept maximal patterns.
+       WATODO: so now we still have a return predicate that is not dependent on the leaf variables of the pattern structure
+               we extracted from the inductives, and we still need to invert it.
+               So i GUESS it's the "make_inverted_return_pred" below.
+               I really need to commit these comments somewhere that is not my tablet
+    *)
+    (* WATODO: identify all the places where manual axiomatic type coercions are made, and rendre explicite the assumptions
+               under which those are sound *)
     let* return_pred =
       if tomatches |> TomatchVector.for_all { f = fun (type annot annot_tail)
           (I tomatch : (_, annot, annot_tail) TomatchVector.A.t) ->
