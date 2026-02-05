@@ -14,6 +14,18 @@
 
 include GADT
 
+(* Conditional debug *)
+let glob_debug = ref false
+let _ = Goptions.declare_bool_option {
+    Goptions.optdepr = None;
+    Goptions.optstage = Interp;
+    Goptions.optkey = ["SmallInversion"; "Debug"];
+    Goptions.optread = (fun () -> !glob_debug);
+    Goptions.optwrite = (fun b -> glob_debug := b)
+}
+let deprintf fmt =
+  if !glob_debug then Format.eprintf fmt else Format.ifprintf Format.err_formatter fmt
+
 module AbstractDeclaration = struct
   module Self (X : AbstractTermS) = struct
     type ('env, 'nb_args, 'nb_args_tail) desc =
@@ -522,9 +534,28 @@ module GlobalEnv = struct
         (Eq.cast eq glob_env) in
     Eq.cast (Eq.sym eq) env
 
+
   let morphism (type a b) (_ : (a Env.t, b Env.t) Eq.t) :
       (a t, b t) Eq.t =
     transtype
+
+  let print_declaration : type e n1 n2. e t -> Evd.evar_map ->  (e, n1, n2) ERelContext.D.t -> _ = fun genv sigma d ->
+    let name = Names.Name.print d.name.binder_name in
+    let ty = ETerm.debug_print sigma d.ty in
+    let term = match d.desc with
+      | LocalAssum -> Pp.str ""
+      | LocalDef t -> Pp.(str " := " ++ (ETerm.print (env genv) sigma t))
+    in
+    Pp.(name ++ str ":" ++ ty ++ term |> surround |> h)
+
+  let rec print : type env nba nbt. (env, nba, nbt) ERelContext.t -> env t -> Evd.evar_map -> Pp.t -> Pp.t = fun c env sigma sep ->
+    match c with
+    | [] -> Pp.str ""
+    | hd :: tl -> let open Pp in
+        let whtl = ERelContext.with_height tl in
+        let hypnaming = Evarutil.RenameExistingBut Evarutil.VarSet.empty in
+        let decl = print_declaration (push_rel_context ~hypnaming sigma whtl env) sigma hd in
+        decl ++ sep ++ print tl env sigma sep
 
 (*
   type 'a fold = {
@@ -1394,6 +1425,7 @@ module TypedPattern = struct
 
   let height pat = Height.of_nat (size pat)
 
+
   let unsafe_of_cstr ?loc
       (env : 'env Env.t)
       (cstrs :
@@ -1674,7 +1706,7 @@ module Tomatch = struct
   type ('env, 'ind, 'height) t = {
       judgment : 'env EJudgment.t;
       inductive_type : ('env, 'ind, 'height) TomatchType.t;
-      return_pred_context : ('env, 'height) ERelContext.with_height;
+      return_pred_context : ('env, 'height) ERelContext.with_height; (* WA: Not the deep height, but the shallow one*)
       return_pred_height : 'height Height.t;
     }
 
@@ -4639,7 +4671,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let module EqnLength = struct type t = Nat.one Nat.succ end in
     let module T = TypeTomatch (EqnLength) in
     let tomatches_vector = (* WA: Vector of every variable in the in clause ?*)
-      context.context.context |>
+      context.context.context (* WA: shallow context *) |>
       ERelContext.to_rel_vector |>
       Vector.rev |>
       Eq.(cast (Vector.eq (EJudgment.morphism
@@ -4654,7 +4686,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         | Inductive { pattern_structure = Exists { args; _ }; _ } ->
             Nat.to_int (Pattern.size_of_args args O),
             Vector.map (
-              (* Here we create a vector of two clause left hand sides: one corresponding exactly to the pattern structure
+              (* WA: Here we create a vector of two clause left hand sides: one corresponding exactly to the pattern structure
                  of the inductive, and the other is just a variable for the remaining case *)
               fun pattern ->
                 Vector.[
@@ -4666,7 +4698,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       Vector.of_list (List.flatten (List.map snd patterns_list)) in
     let Refl = Option.get (Nat.is_eq (Vector.length patterns)
       (Vector.length tomatches_vector)) in
-    (* WA: Below, tomatches is the substitution *)
+    (* WA: Below,  *)
     let tomatches = Vector.join tomatches_vector patterns in
     let* Exists tomatches = T.type_tomatches subenv tomatches in
     let module V = T.PrepareTomatch.TomatchWithContextVector in
@@ -4695,10 +4727,9 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
           Env.morphism Refl (
             sym (Env.rev_plus context'.decls)) ++
           sym Env.assoc))) in
-(*
-      Format.eprintf "get_sort_of: %a@." Pp.pp_with
-        (EJudgment.print env sigma return_pred);
-*)
+
+      let* _ = EvarMapMonad.use (fun sigma -> deprintf "get_sort_of: %a@." Pp.pp_with
+        (ETerm.print env sigma return_pred)) in
       let* s' =
         EvarMapMonad.use (fun sigma ->
           ETerm.get_sort_of env sigma return_pred) in
@@ -4777,7 +4808,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
        - eqns is now a vector of typed Clause.t, in which the right hand side is a Rhs.t in which the .f closure takes
          the number of declared variables' as arguments to return the correct rhs
     *)
-    Format.eprintf "Preparing the return pred context@.";
+    deprintf "Preparing the return pred context@.";
     let Exists return_pred_context =
       TomatchVector.make_return_pred_context tomatches in
     (* Now return_pret_context is the ""concatenation"" of all the pattern-contexts for the inductives. It is the context
@@ -4786,7 +4817,10 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
                we extracted from the inductives, and we still need to invert it.
                So i GUESS it's the "make_inverted_return_pred" below.
                I really need to commit these comments somewhere that is not my tablet
+       WA: Update: this context does not contain the context for the maximal pattern structure but only shallow one...
     *)
+    let* rctx = EvarMapMonad.use (fun sigma -> (GlobalEnv.print return_pred_context.context.context env sigma (Pp.str " ;;; "))) in
+    deprintf "Return pred context: %a@." Pp.pp_with rctx;
     (* WATODO: identify all the places where manual axiomatic type coercions are made, and rendre explicite the assumptions
                under which those are sound *)
     let* return_pred =
@@ -4819,6 +4853,9 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (EJudgment.print (GlobalEnv.env return_pred_env) sigma return_pred)
       Pp.pp_with (Env.print (GlobalEnv.env return_pred_env));
 *)
+    let* _ = EvarMapMonad.use (fun sigma ->
+        deprintf "Inverted return pred: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred)
+    ) in
     let return_pred_height = Height.of_nat return_pred_context.length in
     let return_pred_height =
       Eq.(cast (Height.morphism return_pred_context.context.eq))
@@ -4826,6 +4863,9 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let return_pred =
       ReturnPred.make ~generalize:generalize_return_pred return_pred
         return_pred_height in
+    let* _ = EvarMapMonad.use (fun sigma -> let Exists return_pred = return_pred in
+        deprintf "Inveted return pred generalized: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred.return_pred)
+    ) in
     compile_loop
       { env; tomatches; return_pred; eqns;
         previously_bounds = []; expand_self = false;

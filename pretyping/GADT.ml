@@ -1086,6 +1086,9 @@ module Env = struct
   let print (env : 'env t) : Pp.t =
     Termops.Internal.print_env (Eq.cast eq env)
   [@@ocaml.warning "-32"] (* can be unused *)
+
+  let concrete (env : 'env t) : Environ.env =
+    Eq.cast eq env
 end
 
 module Height = struct
