@@ -1,0 +1,4 @@
+
+
+
+dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | sed -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"

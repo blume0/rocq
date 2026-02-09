@@ -27,6 +27,8 @@ let _ = Goptions.declare_bool_option {
 }
 let deprintf fmt =
   if !glob_debug then Format.eprintf fmt else Format.ifprintf Format.err_formatter fmt
+let _ = Format.pp_set_max_indent Format.err_formatter 350
+let _ = Format.set_margin 400
 
 module AbstractDeclaration = struct
   module Self (X : AbstractTermS) = struct
@@ -550,15 +552,18 @@ module GlobalEnv = struct
     in
     Pp.(name ++ str ":" ++ ty ++ term |> surround |> h)
 
-  let rec print : type env nba nbt. (env, nba, nbt) ERelContext.t -> env t -> Evd.evar_map -> Pp.t -> Pp.t = fun c env sigma sep ->
+  let print : type env nba nbt. (env, nba, nbt) ERelContext.t -> env t -> Evd.evar_map -> Pp.t -> Pp.t = fun c env sigma sep ->
     if not !glob_debug then Pp.str "" else
-    match c with
-    | [] -> Pp.str ""
-    | hd :: tl -> let open Pp in
+    let rec list_of_terms: type env nba nbt. (env, nba, nbt) ERelContext.t -> env t -> Evd.evar_map -> Pp.t list -> Pp.t list =
+      fun c env sigma acc ->
+      match c with
+      | [] -> acc
+      | hd :: tl ->
         let whtl = ERelContext.with_height tl in
         let hypnaming = Evarutil.RenameExistingBut Evarutil.VarSet.empty in
         let decl = print_declaration (push_rel_context ~hypnaming sigma whtl env) sigma hd in
-        decl ++ sep ++ print tl env sigma sep
+        list_of_terms tl env sigma (decl::acc)
+    in Pp.(prlist_strict Fun.id (list_of_terms c env sigma []))
 
 (*
   type 'a fold = {
@@ -632,6 +637,16 @@ module AnnotatedVector = struct
       match v with
       | [] -> O
       | _ :: tl -> S (length tl)
+
+    type elem_printer = {f : 'a 'b 'c. ('a, 'b, 'c) S.t -> Pp.t}
+
+    let print : elem_printer -> Pp.t -> (_,_,_) t -> Pp.t = fun printer sep v ->
+      let rec aux : type a b c. (a, b, c) t -> Pp.t list -> Pp.t list = fun v acc ->
+        match v with
+        | [] -> List.rev acc
+        | hd :: tl -> aux tl (printer.f hd :: acc)
+      in
+      Pp.prlist_with_sep (fun()->sep) Fun.id (aux v [])
   end
 
   module Map (S0 : AnnotationS) (S1 : AnnotationS) = struct
@@ -1356,6 +1371,29 @@ module Pattern = struct
     let Exists { args; terms } =
       of_terms_rec env sigma terms [] in
     Exists { args; terms = Vector.rev terms }
+
+  let print (s : (_,_) section) : Pp.t =
+    let open Glob_term in
+    let rec print_cases_pattern (p : _ cases_pattern_r) =
+      match p with
+      | PatVar x -> Names.Name.print x
+      | PatCstr (c, ps, as_x) ->
+          let c = Constr.debug_print (Constr.mkConstructU (c,Univ.Instance.empty)) in
+          let ps = List.map DAst.get ps in
+          let x = Names.Name.print as_x in
+          let open Pp in
+          c ++ str"(" ++ prlist_with_sep (fun () -> str",") print_cases_pattern ps ++ str")as" ++ x |> h
+    in print_cases_pattern (DAst.get (to_concrete s))
+
+  (* let print_exists (s : exists) : Pp.t = let Exists s = s in print s (* unused *) *)
+
+  let print_args (args : (_,_,_) args) : Pp.t =
+    let rec printed_args : type a b c. (a, b, c) args -> Pp.t list -> Pp.t list = fun args acc ->
+      match args with
+      | [] -> List.rev acc
+      | arg :: args -> printed_args args (print arg :: acc)
+    in
+    Pp.(prlist_with_sep (fun()->str",") Fun.id (printed_args args []))
 end
 
 module TomatchType = struct
@@ -1511,6 +1549,15 @@ module TypedPattern = struct
               coerce_to ?loc env cstrs (Pattern.to_concrete pat) ind' ind
             with Not_found ->
               Constructor.error_bad ?loc env cstr ind
+
+  let print : type a b c. ((a, b, c) t) -> Pp.t = fun p ->
+    let {name;desc} = p.v in
+    let name = Names.Name.print name in
+    match desc with
+    | Var -> name
+    | Cstr { cstr={cstr;_}; args} ->
+        let cstr = Constr.(debug_print @@ mkConstructU (Constructor.to_concrete cstr, Univ.Instance.empty)) in
+        let open Pp in cstr ++ str"(" ++ Pattern.print_args args ++ str")as" ++ name
 end
 
 module type IndSizedTypeS = sig
@@ -1628,6 +1675,10 @@ module IndSizeNatAnnotation (S : Type3S) = struct
          <ind: 'ind_tail; size: 'size_tail>) t
 
   type 'env unit_annot = <ind: unit; size: Nat.zero>
+
+  type printer = {f : 'a 'b 'c. ('a,'b,'c) S.t -> Pp.t}
+
+  let print : type a b c. printer -> (a, b, c) t -> Pp.t = fun pr (I (t, _)) -> pr.f t
 end
 
 module IndSizeNatVector (S : IndSizedTypeS) = struct
@@ -1887,13 +1938,15 @@ module TomatchVector = struct
         let hd = Tomatch.change ~small_inversion env sigma hd hd' in
         I hd :: change ~small_inversion env sigma tl tl'
 
-  let rec print :
-  type env length annot ret_heigth.
-  env Env.t -> Evd.evar_map -> (env, length, <ind:annot; size:ret_heigth>) t -> Pp.t =
-    fun env sigma v ->
-      match v with
-      | I hd :: tl -> Pp.(EJudgment.print env sigma hd.judgment ++ str" ;;; " ++ print env sigma tl)
-      | [] -> Pp.str ""
+  let print env sigma v =
+    let rec aux :
+      type env length annot ret_heigth.
+      env Env.t -> Evd.evar_map -> (env, length, <ind:annot; size:ret_heigth>) t -> Pp.t list -> Pp.t list =
+      fun env sigma v acc ->
+        match v with
+        | I hd :: tl -> aux env sigma tl ((EJudgment.print env sigma hd.judgment)::acc)
+        | [] -> List.rev acc
+    in Pp.prlist_with_sep (fun _ -> Pp.str " ;;; ") Fun.id (aux env sigma v [])
 end
 
 module Rhs = struct
@@ -2114,6 +2167,17 @@ module Clause = struct
     | eqn :: eqns ->
         if is_catch_all eqn then [eqn]
         else eqn :: remove_trailing_eqns eqns
+
+  let print (c : (_,_,_) t) : Pp.t =
+    let Exists c = c in
+    let {env=_env;ids=_;pats;rhs=_rhs} = c.v in
+    let annot_pat_printer : type a b c. (a,b,c) Patterns.A.t -> Pp.t = fun pat ->
+      let simp_pat_printer : type e f g. (e, f, g) TypedPattern.t -> Pp.t = fun p -> TypedPattern.print p in
+      Patterns.A.print {f=simp_pat_printer} pat
+    in
+    let pretty_pats = Patterns.print {f=annot_pat_printer} (Pp.str",") pats in
+    (* WAPRINTODO : print Rhs by filling it with a dummy context *)
+    let open Pp in pretty_pats ++ str " => " ++ str "???" |> h
 end
 
 let substn_binders (type env n level length diff)
@@ -2349,8 +2413,9 @@ module PatternMatchingProblem = struct
 
   let print : type eqn_length. Evd.evar_map -> ('env,_,_,eqn_length,_,_) t -> Pp.t = fun sigma p ->
     let eqn_num = Vector.length p.eqns in
+    let nmatches = TomatchVector.length p.tomatches |> Nat.to_int in
     match p.eqns with
-    | (Exists {v={pats=p1;_}} :: Exists { v={pats=p2;_}} :: []) ->
+    | (Exists {v={pats=p1;_}} :: Exists { v={pats=p2;_}} :: []) when false ->
       let k : type a b c. (a, b, c) Patterns.t -> _ = fun p0 ->
         match p0 with
         | [] -> Pp.str "2-PROBLEM with empty second pattern"
@@ -2362,13 +2427,15 @@ module PatternMatchingProblem = struct
                                         end
       in
       k p2
-    | (Exists {v={pats=p1;_}} :: [])  -> Pp.str "Probably a trivial 1-problem"
+    | (Exists {v={pats=p1;_}} :: []) when nmatches = 0 && false -> Pp.str "Probably a trivial 1-problem"
     | _ ->
-    Pp.(
-      str "tomatches={" ++ TomatchVector.print (GlobalEnv.env p.env) sigma p.tomatches ++ str "}"
-      ++
-      str "Number of equations: " ++ int (eqn_num |> GADT.Nat.to_int)
-    ) |> Pp.flatten
+      Pp.(
+        str "tomatches={" ++ TomatchVector.print (GlobalEnv.env p.env) sigma p.tomatches ++ str "}"
+        ++
+        str "  Number of equations: " ++ int (eqn_num |> GADT.Nat.to_int)
+        ++
+        str "  Equations:" ++ brk (10,4) ++ (Vector.print Clause.print (brk (5,4)) p.eqns)
+      ) |> Pp.flatten
 end
 
 module PrepareTomatch (EqnLength : Type) = struct
@@ -4669,10 +4736,10 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
          (env, tomatch_length, ind, eqns_length, return_pred_height,
            previously_bounds) PatternMatchingProblem.t) :
       env EJudgment.t EvarMapMonad.t =
-    deprintf "Entering compile_loop...@.";
+    deprintf "@.Entering compile_loop...";
     let open EvarMapMonad.Ops in
     let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem) in
-    deprintf "\tProblem: %a@." Pp.pp_with pb_pp;
+    deprintf "Problem:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
     if debug then
       Format.eprintf "compile in env: %a@."
         Pp.pp_with (Env.print (GlobalEnv.env problem.env));
@@ -4687,7 +4754,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     | I tomatch :: _ ->
         compile_case tomatch problem
     in
-    deprintf "Exiting compile_loop...@.";
+    deprintf "Exiting compile_loop...@.@.";
     ret
 
   (* WA: at this point we have

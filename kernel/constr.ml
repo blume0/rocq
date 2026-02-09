@@ -1506,46 +1506,49 @@ let pr_puniverses p u =
 
 let rec debug_print c =
   let open Pp in
+  let h (_ : int) = h in
+  let short_const : Constant.t -> Pp.t = fun c -> Label.print (KerName.label (Constant.user c)) in
+  let short_ind : MutInd.t -> Pp.t = fun c -> Label.print (MutInd.label c) in
   match kind c with
   | Rel n -> str "#"++int n
   | Meta n -> str "Meta(" ++ int n ++ str ")"
   | Var id -> Id.print id
   | Sort s -> Sorts.debug_print s
-  | Cast (c,_, t) -> hov 1
+  | Cast (c,_, t) -> h 1
       (str"(" ++ debug_print c ++ cut() ++
        str":" ++ debug_print t ++ str")")
-  | Prod ({binder_name=Name id;_},t,c) -> hov 1
+  | Prod ({binder_name=Name id;_},t,c) -> h 1
       (str"forall " ++ Id.print id ++ str":" ++ debug_print t ++ str"," ++
        spc() ++ debug_print c)
-  | Prod ({binder_name=Anonymous;_},t,c) -> hov 0
+  | Prod ({binder_name=Anonymous;_},t,c) -> h 0
       (str"(" ++ debug_print t ++ str " ->" ++ spc() ++
        debug_print c ++ str")")
-  | Lambda (na,t,c) -> hov 1
+  | Lambda (na,t,c) -> h 1
       (str"fun " ++ Name.print na.binder_name ++ str":" ++
        debug_print t ++ str" =>" ++ spc() ++ debug_print c)
-  | LetIn (na,b,t,c) -> hov 0
+  | LetIn (na,b,t,c) -> h 0
       (str"let " ++ Name.print na.binder_name ++ str":=" ++ debug_print b ++
        str":" ++ brk(1,2) ++ debug_print t ++ cut() ++
        debug_print c)
-  | App (c,l) ->  hov 1
+  | App (c,l) ->  h 1
       (str"(" ++ debug_print c ++ spc() ++
        prlist_with_sep spc debug_print (Array.to_list l) ++ str")")
   | Evar (e,l) ->
     let pro = function None -> str "?" | Some c -> debug_print c in
-    hov 1
+    h 1
       (str"Evar#" ++ int (Evar.repr e) ++ str"{" ++
        prlist_with_sep spc pro (SList.to_list l) ++str"}")
-  | Const (c,u) -> str"Cst(" ++ pr_puniverses (Constant.debug_print c) u ++ str")"
-  | Ind ((sp,i),u) -> str"Ind(" ++ pr_puniverses (MutInd.print sp ++ str"," ++ int i) u ++ str")"
+  | Const (c,u) -> str"Cst(" ++ pr_puniverses (short_const c) u ++ str")"
+  | Ind ((sp,i),u) -> str"Ind(" ++ pr_puniverses (short_ind sp ++ str"," ++ int i) u ++ str")"
   | Construct (((sp,i),j),u) ->
-      str"Constr(" ++ pr_puniverses (MutInd.print sp ++ str"," ++ int i ++ str"," ++ int j) u ++ str")"
+      str"Constr(" ++ pr_puniverses (short_ind sp ++ str"," ++ int i ++ str"," ++ int j) u ++ str")"
   | Proj (p,c) -> str"Proj(" ++ Constant.debug_print (Projection.constant p) ++ str"," ++ bool (Projection.unfolded p) ++ str"," ++ debug_print c ++ str")"
   | Case (_ci,_u,pms,p,iv,c,bl) ->
     let pr_ctx (nas, c) =
-      hov 2 (hov 0 (prvect (fun na -> Name.print na.binder_name ++ spc ()) nas ++ str "|-") ++ spc () ++
+      h 2 (h 0 (prvect (fun na -> Name.print na.binder_name ++ spc ()) nas ++ str "|-") ++ spc () ++
         debug_print c)
     in
-    v 0 (hv 0 (str"Case" ++ brk (1,1) ++
+    v 0 (h 0 (str"Case" ++ brk (1,1) ++
              debug_print c ++ spc () ++ str "params" ++ brk (1,1) ++ prvect (fun x -> spc () ++ debug_print x) pms ++
              spc () ++ str"return"++ brk (1,1) ++ pr_ctx p ++ debug_invert iv ++ spc () ++ str"with") ++
        prvect (fun b -> spc () ++ pr_ctx b) bl ++
@@ -1553,7 +1556,7 @@ let rec debug_print c =
   | Fix f -> debug_print_fix debug_print f
   | CoFix(i,(lna,tl,bl)) ->
       let fixl = Array.mapi (fun i na -> (na,tl.(i),bl.(i))) lna in
-      hov 1
+      h 1
         (str"cofix " ++ int i ++ spc() ++  str"{" ++
          v 0 (prlist_with_sep spc (fun (na,ty,bd) ->
            Name.print na.binder_name ++ str":" ++ debug_print ty ++

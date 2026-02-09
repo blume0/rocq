@@ -941,6 +941,14 @@ module Vector = struct
     | hd :: tl -> p hd && for_all p tl
 *)
 
+  let print : ('a -> Pp.t) -> Pp.t -> ('a, 'len) t -> Pp.t = fun pr sep ->
+    let rec aux : type n. ('a, n) t -> Pp.t list -> Pp.t list = fun v acc ->
+      match v with
+      | [] -> List.rev acc
+      | hd :: tl -> aux tl (pr hd :: acc)
+    in
+    fun v -> Pp.prlist_with_sep (fun()->sep) Fun.id (aux v [])
+
   module UseMonad (M : Monad.S) = struct
 (*
     let rec iter : type length a p .

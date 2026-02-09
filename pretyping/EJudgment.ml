@@ -69,12 +69,12 @@ open GADT
 
   let print env sigma j =
     Pp.(ETerm.print env sigma (uj_val j) ++ spc () ++ str ":" ++ spc () ++
-      ETerm.print env sigma (uj_type j))
+      ETerm.print env sigma (uj_type j) |> h)
   [@@ocaml.warning "-32"] (* can be unused *)
 
   let debug_print sigma j =
     Pp.(ETerm.debug_print sigma (uj_val j) ++ spc () ++ str ":" ++ spc () ++
-      ETerm.debug_print sigma (uj_type j))
+      ETerm.debug_print sigma (uj_type j) |> h)
   [@@ocaml.warning "-32"] (* can be unused *)
 
   let pr_judgement env sigma j = print Eq.(cast (sym Env.eq) env) sigma j
