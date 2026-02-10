@@ -4729,6 +4729,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     | (None, _), Not_inductive _ ->
         assert false
 
+  let compile_loop_call_number = ref 0
   let compile_loop
       (type env tomatch_length ind eqns_length return_pred_height
         previously_bounds)
@@ -4736,7 +4737,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
          (env, tomatch_length, ind, eqns_length, return_pred_height,
            previously_bounds) PatternMatchingProblem.t) :
       env EJudgment.t EvarMapMonad.t =
-    deprintf "@.Entering compile_loop...";
+    let current = !compile_loop_call_number in let _ = incr compile_loop_call_number in
+    deprintf "@.Entering compile_loop %d..." current;
     let open EvarMapMonad.Ops in
     let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem) in
     deprintf "Problem:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
@@ -4754,7 +4756,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     | I tomatch :: _ ->
         compile_case tomatch problem
     in
-    deprintf "Exiting compile_loop...@.@.";
+    deprintf "Exiting compile_loop %d.@.@." current;
     ret
 
   (* WA: at this point we have
@@ -5073,7 +5075,7 @@ let compile_cases ?loc ~(program_mode : bool) (style : Constr.case_style)
     Compiler.compile_cases ~generalize_return_pred:infer_return_pred env
       { f = return_pred } tomatches eqns in
   let sigma, judgment =
-    deprintf "STARTING MARCHING...@.";
+    deprintf "STARTING MATCHING...@.";
     if infer_return_pred then
       try_with ~small_inversion:true sigma
     else
