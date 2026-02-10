@@ -1025,12 +1025,43 @@ module Pattern = struct
       ((a, size, size_tail) args, (b, size, size_tail) args) Eq.t = Refl
 *)
 
+
+  let rec desc_nonempty : type size size_tail. (size, size_tail) desc -> size_tail Nat.t -> (size, size_tail Nat.succ) Nat.proof_diff =
+    fun dsc n ->
+    match dsc with
+    | Var -> Exists {plus=Zero_l; diff=O}
+    | Cstr {args; _} -> args_coherent args
+  [@@ocaml.warning "-32"]
+  and content_nonempty : type s st. (s, st) content -> (s, st Nat.succ) Nat.proof_diff =
+    fun ctnt -> desc_nonempty ctnt.desc
+  [@@ocaml.warning "-32"]
+  and section_nonempty : type s st. (s, st) section -> (s, st Nat.succ) Nat.Diff.t =
+    fun sec -> content_nonempty sec.v
+  [@@ocaml.warning "-32"]
+  and args_coherent : type l s st. (l, s, st) args -> (s, st) Nat.Diff.t =
+    fun args ->
+    match args with
+    | [] -> Exists Zero_l
+    | hd::tl ->
+      let Exists plus = section_nonempty hd in
+      let plus = Nat.move_succ_left plus in
+      let Exists plus' = args_coherent tl in
+      Nat.plus_assoc plus' plus
+  [@@ocaml.warning "-32"]
+
+
+  let args_coherent' : type l s st. (l Nat.succ, s, st) args -> s Nat.nonzero =
+    fun args ->
+    let sec::tl = args in
+    Exists (section_nonempty sec)
+  [@@ocaml.warning "-32"]
+
   type exists = Exists : ('size, 'size_tail) section -> exists [@@ocaml.unboxed]
 
   let var ?loc name =
     CAst.make { name; desc = Var }
 
-  let cstr ?loc ?(name = Names.Name.Anonymous) cstr args =
+  let cstr ?loc ?(name = Names.Name.Anonymous) cstr args : (_,_) section =
     CAst.make { name; desc = Cstr { cstr; args }}
 
   let ex_var ?loc name = Exists (var ?loc name)
@@ -2180,6 +2211,7 @@ module Clause = struct
     let open Pp in pretty_pats ++ str " => " ++ str "???" |> h
 end
 
+(* WA: GENERALIZATION HERE *)
 let substn_binders (type env n level length diff)
     (env : (env * n) Env.t) sigma
     (n : n Height.t)
@@ -2199,7 +2231,7 @@ let substn_binders (type env n level length diff)
     let* j =
       subst_vector |> Vector.findi (fun j (subst_t : env ETerm.t) ->
         let subst_t = subst_t |>
-          ETerm.exliftn Lift.(length & n & + h) in
+          ETerm.exliftn Lift.(length & n & (+ h)) in
         if ETerm.equal sigma t subst_t then
           begin
             modified := true;
@@ -4423,6 +4455,11 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         (env, ind, nrealdecls, tail_height) compile_branches EvarMapMonad.t =
       let open EvarMapMonad.Ops in
       let Exists arity_patterns = tomatch_type.pattern_structure in
+      let Exists (Exists plus) = Pattern.args_coherent' (arity_patterns.args) in
+      let* _ = EvarMapMonad.use (fun sigma ->
+          deprintf "@.In compile_branches.@;<5 4>Pattern structure:@[%a@]@.@." Pp.pp_with @@
+            Vector.print (fun t -> ETerm.print (GlobalEnv.env Case.env) sigma t) (Pp.str ",") arity_patterns.terms
+      ) in
 (*
        Format.eprintf "env: @[%a@]@.arity_patterns.terms: @[%a@]@."
           Pp.pp_with (Env.print (GlobalEnv.env env))
@@ -4552,7 +4589,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (type env ind params nrealargs nrealdecls tail_length ind_tail eqns_length
         tail_height previously_bounds)
       (tomatch : (env, ind TomatchType.some, nrealdecls Nat.succ) Tomatch.t)
-      (* WA tomatch: a well scoped term and its type, its inductive type name and its number of indices, and its effective indices *)
+      (* WA tomatch: a well scoped term and its type, its inductive type name and its number of indices, and its pattern structure *)
       (tomatch_type :
         (env, ind, params, nrealargs, nrealdecls) TomatchType.desc)
       (problem :
@@ -4622,6 +4659,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       let tomatch = tomatch
     end in
     let module Compiler = CompileCase (Case) in
+    (* WA: at this point, branches.%(i) is the sequence of clauses of the ith constructor of the current tomatch we're breaking
+    *)
     let* { branches; return_pred; apply = Exists apply } =
       Compiler.compile_branches tomatch_type
         tomatch_vector problem.return_pred problem.tomatches
