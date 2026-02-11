@@ -568,8 +568,13 @@ module Nat = struct
   let plus_one (type a) (a : a t) : (a, one, a succ) plus =
     plus_succ (zero_r a)
 
-  type ('a, 'b) proof_diff = Exists : {plus: ('diff, 'b, 'a) plus; diff: 'diff t} -> ('a, 'b) proof_diff
+
   type 'a nonzero = Exists : {plus: ('diff, 'b succ, 'a) plus; b: 'b t} -> 'a nonzero
+
+  let rec plus_middle : type a b c. (a, b, c) plus -> c t -> b t =
+    fun p c -> match p, c with
+    | Zero_l, _ -> c
+    | Succ_plus p', S c' -> plus_middle p' c'
 
 (*
   let rec inj_r : type a b b' c . (a, b, c) plus -> (a, b', c) plus ->

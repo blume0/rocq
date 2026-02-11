@@ -1026,13 +1026,13 @@ module Pattern = struct
 *)
 
 
-  let rec desc_nonempty : type size size_tail. (size, size_tail) desc -> size_tail Nat.t -> (size, size_tail Nat.succ) Nat.proof_diff =
-    fun dsc n ->
+  let rec desc_nonempty : type size size_tail. (size, size_tail) desc -> (size, size_tail Nat.succ) Nat.Diff.t =
+    fun dsc ->
     match dsc with
-    | Var -> Exists {plus=Zero_l; diff=O}
+    | Var -> Exists Zero_l
     | Cstr {args; _} -> args_coherent args
   [@@ocaml.warning "-32"]
-  and content_nonempty : type s st. (s, st) content -> (s, st Nat.succ) Nat.proof_diff =
+  and content_nonempty : type s st. (s, st) content -> (s, st Nat.succ) Nat.Diff.t =
     fun ctnt -> desc_nonempty ctnt.desc
   [@@ocaml.warning "-32"]
   and section_nonempty : type s st. (s, st) section -> (s, st Nat.succ) Nat.Diff.t =
@@ -1050,10 +1050,14 @@ module Pattern = struct
   [@@ocaml.warning "-32"]
 
 
-  let args_coherent' : type l s st. (l Nat.succ, s, st) args -> s Nat.nonzero =
-    fun args ->
+  let args_coherent' : type l s st. (l Nat.succ, s, st) args -> st Nat.t -> s Nat.nonzero =
+    fun args n ->
+    let Exists plus = args_coherent args in
+    let s = Nat.plus_nat plus n in
     let sec::tl = args in
-    Exists (section_nonempty sec)
+    let Exists plus = section_nonempty sec in
+    let S b = Nat.plus_middle plus s in
+    Exists {plus; b}
   [@@ocaml.warning "-32"]
 
   type exists = Exists : ('size, 'size_tail) section -> exists [@@ocaml.unboxed]
@@ -1097,6 +1101,14 @@ module Pattern = struct
     match args0, plus with
     | [], Zero_l -> args1
     | hd :: tl, Succ_plus plus -> hd :: append_plus tl args1 plus
+
+  type ('s, 'st) exists_args = Exists : ('l, 's, 'st) args -> ('s, 'st) exists_args [@@ocaml.unboxed]
+  let strip_one_args : type l s. (l Nat.succ, s Nat.succ, Nat.zero) args -> (l, s, Nat.zero) args =
+    fun (hd::tl) ->
+      let ({name;desc}, loc) = hd.v, hd.loc in
+      match desc with
+      | Var -> tl
+      | Cstr {cstr; args} -> failwith "WA: trying to strip non-variable argument from pattern"
 
 (*
   type ('l0, 'l1, 's0, 's2) concat = Exists : {
@@ -3902,7 +3914,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         (args_env : (env * height) GlobalEnv.t)
         (summary : (env, ind, nrealargs, height, args) ConstructorSummary.t)
         (generalized_return_pred :
-          (env * generalized_height, nrealdecls Nat.succ * tail_height)
+          (env * generalized_height, nrealdecls * tail_height)
           ReturnPred.t)
         (height : height Height.t)
         (args : (env, height, args) ERelContext.t)
@@ -3918,7 +3930,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
           (((env * height) * refine_tomatches) ETerm.t, patterns_height)
           Vector.t)
         (refine_terms :
-          (((env * height) * refine_tomatches) ETerm.t, nrealdecls Nat.succ)
+          (((env * height) * refine_tomatches) ETerm.t, nrealdecls)
           Vector.t)
         (old_previously_bounds :
           ((env * height) Rel.t, old_previously_bounds) Vector.t)
@@ -4233,7 +4245,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         (inverted_return_pred :
            ((env * nrealdecls Nat.succ) * tail_height) ETerm.t)
         (generalized_return_pred :
-          (env * generalized_height, nrealdecls Nat.succ * tail_height)
+          (env * generalized_height, nrealdecls * tail_height)
           ReturnPred.t)
         (arity_patterns :
           (nrealargs Nat.succ, env, patterns_height, Nat.zero)
@@ -4291,14 +4303,21 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
             name)) in
       let args = ERelContext.set_names (Vector.rev names) args in
       let* args_env = push_rel_context_m (ERelContext.with_height args) env in
-      let self =
-        ETerm.of_term
-          (ConstructorSummary.build_dependent_constructor summary) in
+      (* let self = *)
+      (*   ETerm.of_term *)
+      (*     (ConstructorSummary.build_dependent_constructor summary) in *)
+      let Exists {plus;b} = Pattern.args_coherent' (arity_patterns.args) O in
+      let Succ_plus plus' = Nat.move_succ_left plus in
+      let* _ = EvarMapMonad.use (fun sigma ->
+          deprintf "@.In compile_branches.@;<5 4>Pattern structure:@[%a@]@.@." Pp.pp_with @@
+            Vector.print (fun t -> ETerm.print (GlobalEnv.env Case.env) sigma t) (Pp.str ",") arity_patterns.terms
+      ) in
+      let (a1, _::t1) = Pattern.strip_one_args arity_patterns.args, arity_patterns.terms in
+      let arity_patterns = ({args=a1; terms=t1} : (_, _, _, _) Pattern.of_terms_exists) in
       let* patterns =
         EvarMapMonad.use (fun sigma ->
           refine_patterns (GlobalEnv.env args_env) sigma arity_patterns.args
-            (Vector.append_plus summary.concl_realargs [self]
-              (Nat.plus_one summary.nrealargs))) in
+            (summary.concl_realargs)) in
       let* branch =
         match patterns with
         | None ->
@@ -4339,13 +4358,13 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
             let tomatch_height =
               Height.of_nat (Vector.length refine.result.tomatches) in
             let locals : _ Vector.t =
-              let hd :: tl = Vector.rev refine.locals in
+              let tl = Vector.rev refine.locals in
               let arity = ERelContext.lift tomatch_height arity in
-              hd :: Vector.rev (ERelContext.subst_of_instance arity tl) in
+              Vector.rev (ERelContext.subst_of_instance arity tl) in
             let terms : _ Vector.t =
-              let hd :: tl = Vector.rev refine.terms in
+              let tl = Vector.rev refine.terms in
               let arity = ERelContext.lift refine_height arity in
-              hd :: Vector.rev (ERelContext.subst_of_instance arity tl) in
+              Vector.rev (ERelContext.subst_of_instance arity tl) in
             let old_previously_bounds =
               Vector.map (Rel.lift height) old_previously_bounds in
             let Exists { vector = old_previously_bounds; _ } =
@@ -4455,11 +4474,14 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         (env, ind, nrealdecls, tail_height) compile_branches EvarMapMonad.t =
       let open EvarMapMonad.Ops in
       let Exists arity_patterns = tomatch_type.pattern_structure in
-      let Exists (Exists plus) = Pattern.args_coherent' (arity_patterns.args) in
+      let Exists {plus;b} = Pattern.args_coherent' (arity_patterns.args) O in
+      let Succ_plus plus' = Nat.move_succ_left plus in
       let* _ = EvarMapMonad.use (fun sigma ->
           deprintf "@.In compile_branches.@;<5 4>Pattern structure:@[%a@]@.@." Pp.pp_with @@
             Vector.print (fun t -> ETerm.print (GlobalEnv.env Case.env) sigma t) (Pp.str ",") arity_patterns.terms
       ) in
+      let (a1, _::t1) = Pattern.strip_one_args arity_patterns.args, arity_patterns.terms in
+      let arity_patterns = ({args=a1; terms=t1} : (_, _, _, _) Pattern.of_terms_exists) in
 (*
        Format.eprintf "env: @[%a@]@.arity_patterns.terms: @[%a@]@."
           Pp.pp_with (Env.print (GlobalEnv.env env))
