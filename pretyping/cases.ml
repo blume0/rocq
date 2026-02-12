@@ -2180,6 +2180,7 @@ module Clause = struct
     let open Pp in pretty_pats ++ str " => " ++ str "???" |> h
 end
 
+(* WA: GENERALIZATION HERE *)
 let substn_binders (type env n level length diff)
     (env : (env * n) Env.t) sigma
     (n : n Height.t)
@@ -2199,7 +2200,7 @@ let substn_binders (type env n level length diff)
     let* j =
       subst_vector |> Vector.findi (fun j (subst_t : env ETerm.t) ->
         let subst_t = subst_t |>
-          ETerm.exliftn Lift.(length & n & + h) in
+          ETerm.exliftn Lift.(length & n & (+ h)) in
         if ETerm.equal sigma t subst_t then
           begin
             modified := true;
@@ -4552,7 +4553,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (type env ind params nrealargs nrealdecls tail_length ind_tail eqns_length
         tail_height previously_bounds)
       (tomatch : (env, ind TomatchType.some, nrealdecls Nat.succ) Tomatch.t)
-      (* WA tomatch: a well scoped term and its type, its inductive type name and its number of indices, and its effective indices *)
+      (* WA tomatch: a well scoped term and its type, its inductive type name and its number of indices, and its pattern structure *)
       (tomatch_type :
         (env, ind, params, nrealargs, nrealdecls) TomatchType.desc)
       (problem :
@@ -4622,6 +4623,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       let tomatch = tomatch
     end in
     let module Compiler = CompileCase (Case) in
+    (* WA: at this point, branches.%(i) is the sequence of clauses of the ith constructor of the current tomatch we're breaking
+    *)
     let* { branches; return_pred; apply = Exists apply } =
       Compiler.compile_branches tomatch_type
         tomatch_vector problem.return_pred problem.tomatches
