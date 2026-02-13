@@ -638,6 +638,96 @@ module AnnotatedVector = struct
       | [] -> O
       | _ :: tl -> S (length tl)
 
+
+    type ('env, 'l, 'b)  findi_fun = { f : 'ann 'eann. 'l Fin.t -> ('env, 'ann, 'eann) S.t -> 'b option }
+    let rec findi_aux :
+    type i env l l' ann. i Nat.t -> l' Nat.t -> (i, l', l) Nat.plus ->
+      (env, l, 'b) findi_fun -> (env, l', ann) t -> ('b * l Fin.t) option =
+    fun i l' diff f v ->
+      match v, l' with
+      | [], O -> None
+      | hd :: tl, S l' ->
+          match f.f (Exists diff) hd with
+          | None -> findi_aux (S i) l' (Nat.move_succ_left diff) f tl
+          | Some x -> Some (x, Exists diff)
+
+    let findi (type l) (f : ('env, l, 'b) findi_fun) (v : ('env, l, 'ann) t) : ('b * l Fin.t) option =
+      findi_aux O (length v) Zero_l f v
+
+    type ('env, 'length, 'annot, 'idx) get_split_result = Exists : {
+      plus : ('remaining, 'idx Nat.succ, 'length) Nat.plus;
+      before : ('env, 'idx, 'annot, 'left_annot) section;
+      elem : ('env, 'left_annot, 'right_annot) S.t;
+      after : ('env, 'remaining, 'right_annot) t
+    } -> ('env, 'length, 'annot, 'idx) get_split_result
+
+    let rec cons_right:
+    type env length annot_head annot end_annot.
+      (env, length, annot_head, annot) section -> (env, annot, end_annot) S.t ->
+      (env, length Nat.succ, annot_head, end_annot) section =
+    fun sec e ->
+      match sec with
+      | [] -> e :: []
+      | hd :: tl -> hd :: cons_right tl e
+
+    let rec get_split_aux :
+    type env d l l' ann ann' idx idx'.
+      d Nat.t -> l Nat.t -> (d, l, l') Nat.plus ->
+      idx Nat.t -> (l, idx Nat.succ) Nat.Diff.t -> (d, idx, idx') Nat.plus ->
+      (env, d, ann, ann') section -> (env, l, ann') t -> (env, l', ann, idx') get_split_result =
+    fun d length diff idx (Exists idx_diff) d_plus_idx acc v ->
+      let Succ_plus idx_diff = Nat.move_succ_left idx_diff in
+      let (hd::tl) = v in
+      let diff = Nat.move_succ_left diff in
+      let idx' = Nat.plus_nat d_plus_idx idx in
+      let Nat.S l_sub = length in
+      let Exists {sum=z; plus=d_plus_n_is_z} = Nat.add d (Nat.plus_l idx_diff) in
+      let Exists {sum=zidx; plus=z_plus_idx_is} = Nat.add z idx in
+      let sz_plus_idx_is_l' = Nat.(plus_assoc_rec idx_diff diff (Succ_plus d_plus_n_is_z)) in
+      let sn_plus_idx'_is_Szidx =  Nat.(Succ_plus (plus_same_left d_plus_n_is_z d_plus_idx z_plus_idx_is)) in
+      let Refl = Nat.plus_fun (Succ_plus z_plus_idx_is) sz_plus_idx_is_l' in
+      match idx with
+      | O ->
+          let Refl, Refl = Nat.zero_r_eq d_plus_idx, Nat.zero_r_eq idx_diff in
+          Exists {plus=Nat.move_succ_right sn_plus_idx'_is_Szidx idx'; before=acc; elem=hd; after=tl}
+      | S idx ->
+          let acc' = cons_right acc hd in
+          get_split_aux (S d) l_sub diff idx (Exists idx_diff) (Nat.move_succ_left d_plus_idx) acc' tl
+
+    let get_split:
+      type env l idx. (env, l, 'annot_tail) t -> idx Nat.t -> (l, idx Nat.succ) Nat.Diff.t ->
+      (env, l, 'annot_tail, idx) get_split_result =
+    fun v idx diff -> get_split_aux O (length v) Zero_l idx diff Zero_l [] v
+
+
+    (* WATODO: efficient rev to do linear-time get_split *)
+    (* type ('env, 'l, 'annot, 'annot_tail) opsection = *)
+    (*   | [] : ('env, Nat.zero, 'annot, 'annot) opsection *)
+    (*   | (::) : *)
+    (*       ('env, 'length, 'start_annot, 'annot_tail) opsection * *)
+    (*       ('env, 'annot_tail, 'annot) S.t -> *)
+    (*         ('env, 'length Nat.succ, 'start_annot, 'annot) opsection *)
+    (* let rec reverse_section : *)
+    (* type env l l_acc l_tot ann ann' ann0. *)
+    (* (env, l, ann, ann') section -> (env, l_acc, ann, ann0) opsection -> (l, l_acc, l_tot) Nat.plus -> l_acc Nat.t -> *)
+    (* (env, l_tot, ann', ann0) opsection = fun s acc p l_acc -> *)
+    (*   match s, p with *)
+    (*   | [], Zero_l -> acc *)
+    (*   | hd :: tl, Succ_plus p' -> reverse_section tl (acc :: hd) (Nat.move_succ_right p l_acc) (S l_acc) *)
+
+    type 'env exists_elem = Exists : ('env, 'a, 'b) S.t -> 'env exists_elem
+    let rec get:
+      type env l a b. (env, l, a, b) section -> l Fin.t -> l Nat.t -> env exists_elem =
+    fun v (Exists l) top_l ->
+      let l = Nat.move_succ_left l in
+      match v, l, top_l with
+      | hd::_, Succ_plus (Zero_l), S top_l -> Exists hd
+      | _::tl, Succ_plus (Succ_plus e), S (S top_l) ->
+          let e = Nat.move_succ_right (Nat.Succ_plus e) (Nat.plus_r e top_l) in
+          get tl (Exists e) (S top_l)
+      | [], _, _ -> .
+
+
     type elem_printer = {f : 'a 'b 'c. ('a, 'b, 'c) S.t -> Pp.t}
 
     let print : elem_printer -> Pp.t -> (_,_,_) t -> Pp.t = fun printer sep v ->
@@ -2145,11 +2235,11 @@ module Clause = struct
     let Refl = Option.get (Nat.is_eq size_pat (Rhs.length clause.rhs)) in
     Exists (CAst.make ?loc clause)
 
-  let extract_pat_var (type env length head tail)
-      (Exists clause : (env, length, head * tail) t) :
+  let extract_pat_var (type env length tomatch_inds)
+      (l : length Nat.t) (i : length Fin.t) (Exists clause : (env, length, tomatch_inds) t) :
       Names.Name.t option =
-    match clause.v.pats with
-    | I (head, _sum) :: _ -> Option.map fst (TypedPattern.get_var head)
+    match Patterns.get clause.v.pats i l with
+    | Exists (I (head, _sum))  -> Option.map fst (TypedPattern.get_var head)
 
   let is_catch_all (type env length ind)
       (Exists eqn : (env, length, ind) t) =
@@ -2411,6 +2501,37 @@ module PatternMatchingProblem = struct
       expand_self : bool;
       allow_destruct_empty : bool;
     }
+
+
+  let rec find_trivial_position :
+    type env tomatch_length eqn_length tomatch_ind.
+    ((env, tomatch_length Nat.succ, tomatch_ind) Clause.t, eqn_length) Vector.t ->
+      ((Names.Name.t, eqn_length) Vector.t * tomatch_length Nat.succ Fin.t) option =
+  fun v ->
+    match v with
+    | [] -> None
+    | Exists {v=hd} :: tl ->
+      let (let+) = (fun o f -> match o with Some x -> f x | _ -> None) in
+      let module V = Vector.UseMonad (Monad.Option) in
+      let tomatch_length = Patterns.length hd.pats in
+      let f : type env ann eann.
+        tomatch_length Nat.succ Fin.t -> (env, ann, eann) Patterns.A.t ->
+        (Names.Name.t, eqn_length) Vector.t option =
+        fun k (I (head, _sum)) ->
+          let+ (vars_hd, _) = TypedPattern.get_var head in
+          let+ vars_tl = V.map (Clause.extract_pat_var tomatch_length k) tl in
+          Some Vector.(vars_hd::vars_tl)
+      in
+      Patterns.findi {f} hd.pats
+
+  (* WA for reference *)
+  (* let extract_pat_var (type env length head tail) *)
+  (*     (Exists clause : (env, length, head * tail) t) : *)
+  (*     (Names.Name.t * length Fin.t) option = *)
+  (*   let f : type env ann eann. (env, ann, eann) Patterns.A.t -> Names.Name.t option = *)
+  (*     fun (I (head, _sum)) -> Option.map fst (TypedPattern.get_var head) *)
+  (*   in *)
+  (*   Patterns.findi {f} clause.v.pats *)
 
   let print : type eqn_length. Evd.evar_map -> ('env,_,_,eqn_length,_,_) t -> Pp.t = fun sigma p ->
     let eqn_num = Vector.length p.eqns in
@@ -3594,24 +3715,32 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         EJudgment.uj_val tomatch.judgment :: Vector.rev args
 
   let compile_case_trivial
-      (type env ind tail_length ind_tail eqns_length return_pred_height
+      (type env ind tail_length total_ind eqns_length total_return_pred_heigth
         tail_height previously_bounds)
-      (tomatch : (env, ind, return_pred_height) Tomatch.t)
+      (* (tomatch : (env, ind, return_pred_height) Tomatch.t) *)
       (vars : (Names.Name.t, eqns_length) Vector.t)
+      (Exists k : tail_length Nat.succ Fin.t)
       (problem :
-         (env, tail_length Nat.succ, ind * ind_tail, eqns_length,
-           return_pred_height * tail_height, previously_bounds)
+         (env, tail_length Nat.succ, total_ind, eqns_length,
+           total_return_pred_heigth, previously_bounds)
          PatternMatchingProblem.t) :
       env EJudgment.t EvarMapMonad.t =
     let open EvarMapMonad.Ops in
+    let S k_nat = Nat.plus_r k (TomatchVector.length problem.tomatches) in
+    let Exists {before=_skipped_tomatches; elem=I tomatch; after=tail_tomatches} =
+      TomatchVector.get_split problem.tomatches k_nat (Exists k) in
     let Exists { nat; eq } = Height.to_nat tomatch.return_pred_height in
-    let tail_tomatches = TomatchVector.tl problem.tomatches in
+    (* let tail_tomatches = TomatchVector.tl problem.tomatches in *)
     let tail_height = TomatchVector.height tail_tomatches in
     let substl = get_tomatch_args (GlobalEnv.env problem.env) tomatch in
 (*
     Format.eprintf "compile case trivial: %a@."
       Pp.pp_with (Pp.pr_enum ETerm.debug_print (Vector.to_list substl));
 *)
+    (* WA VERY NEXT TODO:
+       apply here only knows how to substitute a segment of last variables (i.e the first tomatch context)
+       generalize it (good luck)
+    *)
     let return_pred =
       ReturnPred.apply (Vector.rev substl) tail_height problem.return_pred in
     let self_name = Vector.find_name Fun.id vars in
@@ -4719,7 +4848,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let problem = { problem with eqns } in
     let module V = Vector.UseMonad (Monad.Option) in
     match
-      (V.map Clause.extract_pat_var problem.eqns, problem.eqns),
+      (PatternMatchingProblem.find_trivial_position problem.eqns, problem.eqns),
       tomatch.inductive_type
     with (* WA  now we are also here here *)
     | (None (* WA it is NOT a variable *), _ | Some _, [] (* WA It is a variable but on an expected empty type*)), Inductive desc ->
@@ -4727,8 +4856,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         compile_destruct tomatch desc { problem with allow_destruct_empty = true (* WATODO HACK: find why we destruct twice on empty *) }
        else
          assert false
-    | (Some vars, _), _ ->
-        compile_case_trivial tomatch vars problem
+    | (Some (vars, k), _), _ ->
+        compile_case_trivial tomatch vars k problem
     | (None, _), Not_inductive _ ->
         assert false
 

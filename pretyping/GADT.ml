@@ -565,6 +565,18 @@ module Nat = struct
         b t -> (a, b, sum) plus -> (b, a, sum) plus = fun b plus ->
     Obj.magic b
 
+
+  let move_succ_right : type a b a_plus_b .
+       (a succ, b, a_plus_b) plus -> b t -> (a, b succ, a_plus_b) plus = fun p b ->
+    let Succ_plus sub_p = p in
+    plus_commut b p |> move_succ_left |> plus_commut (plus_l sub_p)
+
+  let rec plus_r : type a b a_plus_b. (a, b, a_plus_b) plus -> a_plus_b t -> b t =
+  fun p apb ->
+    match p, apb with
+    | Zero_l, n -> n
+    | Succ_plus p, S apb -> plus_r p apb
+
   let plus_one (type a) (a : a t) : (a, one, a succ) plus =
     plus_succ (zero_r a)
 
@@ -594,6 +606,16 @@ module Nat = struct
     | Zero_l, Zero_l -> x
     | Succ_plus y, Succ_plus z ->
         Succ_plus (plus_assoc_rec x y z)
+
+  let rec plus_same_left :
+  type z d n i i' zi. (d, n, z) plus -> (d, i, i') plus -> (z, i, zi) plus ->
+    (n, i', zi) plus = fun dnz dii' zi ->
+    match dnz, dii' with
+    | Zero_l, Zero_l -> zi
+    | Succ_plus dnz, Succ_plus dii' ->
+        let Succ_plus zi = zi in
+        let r = plus_same_left dnz dii' zi in
+        plus_succ r
 
 (*
   let plus_assoc (type a b c x y) (x : (x, a, b) plus) (y : (y, b, c) plus) :
