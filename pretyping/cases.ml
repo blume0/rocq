@@ -2318,11 +2318,12 @@ let subst_binders (type env level length diff) (env : env Env.t) sigma
   Eq.(cast (ETerm.morphism Env.zero_r) term), modified
 
 module ReturnPred = struct
+  (*WA   d : (Γ, Δ+, x) desc --- Γ, Δ+ ⊢ d.return_pred[d.previous] : ◻ *)
   type ('env, 'return_pred_height, 'previous) desc = {
       return_pred : (('env * 'previous) * 'return_pred_height) ETerm.t;
-      height : 'return_pred_height Height.t;
+      height : 'return_pred_height Height.t; (* WA Δ+ *)
       generalize : bool;
-      previous : ('env ETerm.t, 'previous) Vector.t;
+      previous : ('env ETerm.t, 'previous) Vector.t; (* WA Lazy evaluation *)
     }
 
   type ('env, 'return_pred_height) t = Exists :
@@ -2336,6 +2337,12 @@ module ReturnPred = struct
 
   let get (Exists { return_pred; height; previous; _ }) =
     ETerm.substnl (Height.Vector.of_vector previous) height return_pred
+
+  let normalize_get : type env height. (env, height) t -> (env, height, Nat.zero) desc =
+    fun (Exists{ return_pred; height; generalize} as r) ->
+    let return_pred = get r in
+    let return_pred = return_pred |> Eq.(cast (ETerm.morphism (Env.morphism (sym Env.zero_r) Refl))) in
+    {return_pred; height; previous=[]; generalize}
 
 (*
   let check_generalize (Exists { generalize; _ }) =
@@ -2374,6 +2381,20 @@ module ReturnPred = struct
       ((env * n) * h) ETerm.t ->
       Eq.(cast (sym (ETerm.morphism Env.assoc ^-> ETerm.morphism Env.assoc)))
         (ETerm.substnl v Height.Ops.(n + h)) term }
+
+  let substnl' (type env n l return_pred_height)
+      (v : ((env * return_pred_height) ETerm.t, l) Height.Vector.t) (n : n Height.t)
+      (return_pred : (env, (return_pred_height * l) * n) t) :
+      (env, return_pred_height * n) t =
+    let {return_pred; height; previous; generalize} = normalize_get return_pred in
+    let return_pred = return_pred |> Eq.(cast (ETerm.morphism (
+      (Env.morphism Env.zero_r Refl ++ sym Env.assoc ++ Env.morphism (sym Env.assoc) Refl
+    )))) in
+    let return_pred = ETerm.substnl v n return_pred in
+    let return_pred = return_pred |> Eq.(cast (ETerm.morphism (Env.assoc))) in
+    let Exists {vector=v; eq=eq} = v in
+    let l = Vector.length v |> Height.of_nat |> Eq.(cast (sym @@ Height.morphism eq)) in
+    make ~generalize return_pred Height.Ops.(height - n - l + n)
 
 (*
   let substl (type env l return_pred_height)
@@ -3727,22 +3748,24 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       env EJudgment.t EvarMapMonad.t =
     let open EvarMapMonad.Ops in
     let S k_nat = Nat.plus_r k (TomatchVector.length problem.tomatches) in
-    let Exists {before=_skipped_tomatches; elem=I tomatch; after=tail_tomatches} =
+    let Exists {before=skipped_tomatches; elem=I tomatch; after=tail_tomatches; plus=split_plus} =
       TomatchVector.get_split problem.tomatches k_nat (Exists k) in
     let Exists { nat; eq } = Height.to_nat tomatch.return_pred_height in
     (* let tail_tomatches = TomatchVector.tl problem.tomatches in *)
     let tail_height = TomatchVector.height tail_tomatches in
-    let substl = get_tomatch_args (GlobalEnv.env problem.env) tomatch in
-(*
-    Format.eprintf "compile case trivial: %a@."
-      Pp.pp_with (Pp.pr_enum ETerm.debug_print (Vector.to_list substl));
-*)
-    (* WA VERY NEXT TODO:
+    let Exists {diff=skipped_heigth; plus=skipped_plus} = TomatchVector.partial_height skipped_tomatches in
+    let return_pred = ReturnPred.morphism Refl
+             Eq.(sym skipped_plus ++ sym Env.assoc) problem.return_pred in
+    let _ = skipped_tomatches, tail_tomatches, skipped_heigth, skipped_plus in
+    let substl = get_tomatch_args (GlobalEnv.env problem.env) tomatch
+                 |> Vector.map (ETerm.lift skipped_heigth) |> Height.Vector.of_vector in
+    (* WATODO: this means tomatches are all independent and typed in 'env as hugo said *)
+    (* WA DONE:
        apply here only knows how to substitute a segment of last variables (i.e the first tomatch context)
        generalize it (good luck)
     *)
-    let return_pred =
-      ReturnPred.apply (Vector.rev substl) tail_height problem.return_pred in
+    let return_pred = ReturnPred.substnl' substl tail_height return_pred in
+      (* ReturnPred.apply (Vector.rev substl) tail_height problem.return_pred in *)
     let self_name = Vector.find_name Fun.id vars in
     let* rel0, (_declaration, env) =
       EvarMapMonad.use (fun sigma ->
@@ -3750,6 +3773,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let tomatches = TomatchVector.lift Height.one tail_tomatches in
     let* rel_eqns =
       EvarMapMonad.use (fun sigma ->
+    (* WA VERY NEXT TODO: adapt make_eqn now *)
     let make_eqn (Exists { v; loc } :
         (env, tail_length Nat.succ, ind * ind_tail) Clause.t) :
         _ Rel.t option * (env * Nat.one, tail_length, ind_tail) Clause.t =

@@ -1136,8 +1136,14 @@ module Height = struct
   let add (type a b) (a : a t) (b : b t) : (a * b) t =
     Eq.cast (Eq.sym eq) (Eq.cast eq a + Eq.cast eq b)
 
+  (* WA: here as an example of "safe" depending on external preconditions/specifications *)
+  let sub_l (type a b) (ab : (a * b) t) (b : b t) : a t =
+    let ab, b = Eq.(cast eq ab, cast eq b) in
+    Eq.(cast (sym eq) (ab - b))
+
   module Ops = struct
     let ( + ) = add
+    let ( - ) = sub_l
   end
 
   let succ (type a) (a : a t) : (a Nat.succ) t =
