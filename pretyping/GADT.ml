@@ -1046,6 +1046,35 @@ module Vector = struct
 
 end
 
+module type PhantomMonoid = sig
+  type 'a t
+
+  type unit_annot
+
+  val zero : unit_annot t
+
+  val assoc : ((('a * 'b) * 'c) t, ('a * ('b * 'c)) t) Eq.t
+
+  val zero_l : ((unit_annot * 'a) t, 'a t) Eq.t
+
+  val zero_r : (('a * unit_annot) t, 'a t) Eq.t
+
+  val morphism : ('a t, 'c t) Eq.t -> ('b t, 'd t) Eq.t -> (('a*'b) t, ('c*'d) t) Eq.t
+
+  val add : 'a t -> 'b t -> ('a * 'b) t
+end
+
+module MonoidDiff (P : PhantomMonoid) = struct
+  type ('a, 'b) diff = Exists : {
+      diff : 'diff P.t;
+      plus : (('diff * 'b) P.t, 'a P.t) Eq.t
+  } -> ('a, 'b) diff
+
+  let diff_zero = Exists { diff = P.zero; plus=P.zero_l }
+  let diff_add (a : 'a P.t) (Exists {diff; plus} : ('b, 'c) diff) =
+    Exists { diff = P.add a diff; plus = Eq.(P.assoc ++ P.morphism Refl plus) }
+end
+
 module Env = struct
   include Phantom (struct type t = Environ.env end)
 
@@ -1056,6 +1085,10 @@ module Env = struct
 *)
 
   (* WA Natural numbers axioms *)
+
+  type unit_annot = Nat.zero
+
+  let zero : unit_annot t = Eq.cast (Eq.sym eq) Environ.empty_env
 
   let zero_l : type env . ((Nat.zero * env) t, env t) Eq.t = transtype
   (* WAA Shouldn't transtype be hidden from Env callers here ? Othewise Env.transtype
@@ -1325,8 +1358,70 @@ module type Type = sig
   type t
 end
 
+
+(*
+   WA: - A finite product of inductive annotation types as defined in the next module InductiveType
+       - While InductiveType.eq allows to get equality constraints by comparing the inductives names,
+       IndAnnotation will allow to get equality constraints obtained by reasoning on vectors of inductive
+       types we already know.
+       - Stated more explicitly, we will have n elements of domain E each annotated by one type 'ind
+         denoting their unique inductive type, and the whole vector will be annotated by
+         ('ind1 * ... * 'indn).
+         Some operations will split the vector into two annotated vectors and one element
+         with respective annotations ('ind1 * ... * 'indk), 'ind(k+1), ('ind(k+2) * ... * 'indn)
+         With these notations, IndNotation.t will be used to carry proofs that these products
+         are parenthésage irrelevant, and we use it to transport
+         (a IndAnnotation.t, b IndAnnotation.t) Eq.t proofs to types annotated by their inductive
+*)
+module IndAnnotation = struct
+  include Phantom (struct type t = unit end)
+
+  (* Constructors None and Some are never used:
+     they are here for injectivity. *)
+
+  type none = [`None]
+
+  type 'ind some = [`Some of 'ind]
+
+  let assoc : type a b c. (((a * b) * c) t, (a * (b * c)) t) Eq.t = transtype
+
+  let zero_l : type a. ((unit * a) t, a t) Eq.t = transtype
+
+  let zero : unit t = Eq.(cast (sym eq) ())
+
+  let morphism : type a b c d. (a t, c t) Eq.t -> (b t, d t) Eq.t -> ((a*b) t, (c*d) t) Eq.t = fun _ _ -> transtype
+
+  let add : type a b. a t -> b t -> (a * b) t = fun _ _ -> Eq.(cast (sym eq) ())
+
+  type ('h_start, 'h_end) diff = Exists : {
+      diff : 'a t;
+      eq : (('a * 'h_end) t, 'h_start t) Eq.t
+    } -> ('h_start, 'h_end) diff
+
+  let diff_zero = Exists { diff = zero; eq=zero_l }
+  let diff_add (a : 'a t) (Exists {diff; eq} : ('b, 'c) diff) =
+    Exists { diff = add a diff; eq = Eq.(assoc ++ morphism Refl eq) }
+
+  (* WA: Extremely fishy hack:
+     Unsound because I can always provide (none t, bot t) Eq.t
+     Should be okay as long as we maintain as an invariant that those equalities are really
+     always formed for (none t, none t) pairs only
+
+     WATODO: try to think of a clean way to do this chief, or at least try to think about a clean way to justify it *)
+  let none_inj_left : type a. (none t, a t) Eq.t -> (none, a) Eq.t = fun _ -> Obj.magic (Eq.Refl)
+
+
+  (* WA: Same thing *)
+  type ('a, 'b) some_inj_left = Exists : { eq : ('c some, 'b) Eq.t } -> ('a, 'b) some_inj_left
+  let some_inj_left : type a b. (a some t, b t) Eq.t -> (a, b) some_inj_left =
+    fun _ -> Exists {eq=Obj.magic Eq.Refl}
+end
+
+
 module InductiveDef = struct
   include Phantom (struct type t = Names.inductive end)
+
+  module A = IndAnnotation
 
   let equal (type ind ind') (ind : ind t) (ind' : ind' t) :
       (ind t, ind' t) Eq.t option =
@@ -1334,6 +1429,10 @@ module InductiveDef = struct
       Some transtype
     else
       None
+
+  let morphism (type ind ind') :
+    (ind A.some A.t, ind' A.some A.t) Eq.t -> (ind t, ind' t) Eq.t =
+  fun _ -> transtype
 end
 
 module type ConcreteTermS = sig
