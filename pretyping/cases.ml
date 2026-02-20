@@ -1013,6 +1013,14 @@ module ConstructorSummary = struct
       Exists : ('env, 'ind, 'nrealargs, 'arity, 'args) t ->
         ('env, 'ind, 'nrealargs) exists [@@ocaml.unboxed]
 
+  let morphism : type e ind ind' n a b.
+    (ind IndAnnotation.some IndAnnotation.t, ind' IndAnnotation.some IndAnnotation.t) Eq.t ->
+    (e, ind, n, a, b) t -> (e, ind', n, a, b) t =
+  fun eq {desc;cstr;args;arity;concl_realargs;nrealargs} ->
+    let eq = Constructor.morphism (InductiveDef.morphism eq) in
+    let cstr = Eq.cast eq cstr in
+    {desc;cstr;args;arity;concl_realargs;nrealargs}
+
   let unsafe_make (type nrealargs) (desc : Inductiveops.constructor_summary)
       (nrealargs : nrealargs Nat.t)
       (cstr : 'ind Constructor.t) : ('env, 'ind, nrealargs) exists =
@@ -1517,8 +1525,8 @@ module TomatchType = struct
     | Inductive : ('env, 'ind, 'params, 'nrealargs, 'nrealdecls) desc ->
           ('env, 'ind some, 'nrealdecls Nat.succ) t
 
-  let morphism : type ind ind'. (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
-                 ('e, ind, 'h) t -> ('e, ind', 'h) t =
+  let morphism : type ind ind' h. (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+                 ('e, ind, h) t -> ('e, ind', h) t =
   fun eq tomatch_type ->
     match tomatch_type with
     | Not_inductive _ ->
@@ -1558,6 +1566,24 @@ module TypedPattern = struct
 
   type ('env, 'ind) exists =
       Exists : ('env, 'ind, 'size) t -> ('env, 'ind) exists [@@ocaml.unboxed]
+
+  let morphism : type e ind ind' s.
+    (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+    (e, ind, s) t -> (e, ind', s) t =
+  fun e s ->
+    let {name; desc} = s.v in
+    match desc with
+    | Var -> CAst.(make ?loc:s.loc ({name; desc=Var}))
+    | Cstr {cstr; args} ->
+        let Exists {eq=Refl} = IndAnnotation.some_inj_left e in
+        let cstr = ConstructorSummary.morphism e cstr in
+        let desc = Cstr {cstr; args} in
+        CAst.(make ?loc:s.loc {name; desc})
+
+  let morphism_exists : type e ind ind'.
+    (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+    (e, ind) exists -> (e, ind') exists =
+  fun e (Exists c) -> Exists (c |> morphism e)
 
   let get_var (type env ind size) (pat : (env, ind, size) t) :
       (Names.Name.t * (size, Nat.one) Eq.t) option =
@@ -1722,24 +1748,6 @@ module IndSizeVector (S : IndSizedTypeS) = struct
     | [] -> Height.diff_zero
     | I hd :: tl -> Height.diff_add (S.height hd) (partial_height tl)
 
-  (* let rec shift_section : type e l real_a real_h a_tail h_tail. *)
-  (*   (e, l, <ind:(real_a * a_tail);size:(real_h * h_tail)>, <ind:a_tail;size:h_tail>) section -> *)
-  (*   (e, l, <ind:real_a; size:real_h>) t = *)
-  (* fun sec -> *)
-  (*   match sec with *)
-  (*   | [] -> let e : (real_a * a_tail, a_tail) Eq.t = Refl in assert false *)
-  (*   | hd :: tl -> assert false *)
-
-  (* let rec merge : type e l l' l'' h_t a_t h_e a_e h_h a_h big_size big_annot. *)
-  (*    (l, l', l'') Nat.plus -> *)
-  (*    (e, l', <ind:big_annot; size:big_size>, <ind:a_e*a_t; size:h_e*h_t>) section -> *)
-  (*    (e, l, <ind:a_t; size:h_t>) t -> *)
-  (*    (e, l'', <ind:a_h*a_t; size:h_h*h_t>) t = *)
-  (* fun plus hd tl -> *)
-  (*   match plus, tl with *)
-  (*   | Zero_l, [] -> hd *)
-  (*   | Succ_plus plus, e::tl -> assert false *)
-
   let rec morphism : type e l a b c n m o.
     (c IndAnnotation.t, (a * b) IndAnnotation.t) Eq.t ->
     (o Env.t, (n * m) Env.t) Eq.t ->
@@ -1762,6 +1770,44 @@ module IndSizeVector (S : IndSizedTypeS) = struct
         let hd_annot = ind_annot_of hd in
         let tl_diff = partial_ind_annot tl in
         IndAnnotation.diff_add hd_annot tl_diff
+
+
+  type ('env, 'l_hd, 'l_tl, 'e_annot, 'e_h, 'hd_annot, 'hd_h, 'tl_annot, 'tl_h) merge_result =
+    Exists : {
+      v : ('env, 'l, <ind: 'res_annot; size: 'res_h>) t;
+      plus : ('l_hd, 'l_tl, 'l) Nat.plus;
+      hd_annot_eq : ('hd_annot IndAnnotation.t, ('diff_annot * ('e_annot * 'tl_annot)) IndAnnotation.t) Eq.t;
+      hd_h_eq : ('hd_h Env.t, ('diff_h * ('e_h * 'tl_h)) Env.t) Eq.t;
+      res_annot_eq : ('res_annot IndAnnotation.t, ('diff_annot * 'tl_annot) IndAnnotation.t) Eq.t;
+      res_h_eq : ('res_h Env.t, ('diff_h * 'tl_h) Env.t) Eq.t;
+    } -> ('env, 'l_hd, 'l_tl, 'e_annot, 'e_h, 'hd_annot, 'hd_h, 'tl_annot, 'tl_h) merge_result
+
+
+  let rec merge : type e l l' hd_a hd_h e_a e_h tl_a tl_h.
+    (e, l', <ind:hd_a; size:hd_h>, <ind:e_a*tl_a; size:e_h*tl_h>) section ->
+    (e, l, <ind:tl_a; size:tl_h>) t ->
+    (e, l', l, e_a, e_h, hd_a, hd_h, tl_a, tl_h) merge_result =
+  fun hd tl ->
+    match hd with
+    | [] -> Exists {
+        v = tl;
+        plus = Zero_l;
+        hd_annot_eq = IndAnnotation.zero_l |> Eq.sym;
+        hd_h_eq = Env.zero_l |> Eq.sym;
+        res_annot_eq = IndAnnotation.zero_l |> Eq.sym;
+        res_h_eq = Env.zero_l |> Eq.sym
+      }
+    | I hd_hd::hd ->
+        let Exists {eq} = partial_ind_annot hd in
+        let Exists {v;plus;hd_annot_eq;hd_h_eq;res_annot_eq;res_h_eq} = merge hd tl in
+        let v = I hd_hd :: v in
+        Exists {
+          v; plus=Nat.Succ_plus plus;
+          hd_annot_eq=Eq.(IndAnnotation.(morphism Refl hd_annot_eq ++ sym assoc));
+          hd_h_eq=Eq.(Env.(morphism Refl hd_h_eq ++ sym assoc));
+          res_annot_eq=Eq.(IndAnnotation.(morphism Refl res_annot_eq ++ sym assoc));
+          res_h_eq=Eq.(Env.(morphism Refl res_h_eq ++ sym assoc));
+        }
 
 
   type ('env, 'a) concat_map_f = {
@@ -1891,6 +1937,67 @@ module IndSizeNatVector (S : IndSizedTypeS) = struct
         let diff0 = Nat.plus_assoc_rec tl.diff0 plus plus_diff in
         let diff1 = Nat.plus_assoc_rec tl.diff1 plus_hd plus_diff in
         Exists { section = I (hd, plus_hd) :: tl.section; diff0; diff1 }
+
+  let ind_annot_of : type ind. ('env, ind, 'h) S.t -> ind IndAnnotation.t =
+    fun _ -> Eq.(cast (sym IndAnnotation.eq) ())
+
+  let rec partial_ind_annot : type env length annot height end_annot end_height.
+       (env, length, <ind: annot; size: height>,
+          <ind:end_annot; size: end_height>) section->
+            (annot, end_annot) IndAnnotation.diff = fun v ->
+    match v with
+    | [] -> IndAnnotation.diff_zero
+    | I (hd, _) :: tl ->
+        let hd_annot = ind_annot_of hd in
+        let tl_diff = partial_ind_annot tl in
+        IndAnnotation.diff_add hd_annot tl_diff
+
+  type ('env, 'l_hd, 'l_tl, 'e_annot, 'mid_h, 'hd_annot, 'hd_h, 'tl_annot, 'tl_h) merge_result =
+    Exists : {
+      v : ('env, 'l, <ind: 'res_annot; size: 'res_h>) t;
+      plus : ('l_hd, 'l_tl, 'l) Nat.plus;
+      hd_annot_eq : ('hd_annot IndAnnotation.t, ('diff_annot * ('e_annot * 'tl_annot)) IndAnnotation.t) Eq.t;
+      hd_h_eq : ('diff_h, 'mid_h, 'hd_h) Nat.plus;
+      (* hd_h_eq : ('hd_h Env.t, ('diff_h * ('e_h * 't_h)) Env.t) Eq.t; *)
+      res_annot_eq : ('res_annot IndAnnotation.t, ('diff_annot * 'tl_annot) IndAnnotation.t) Eq.t;
+      res_h_eq : ('diff_h, 'tl_h, 'res_h) Nat.plus;
+      (* res_h_eq : ('res_h Env.t, ('diff_h * 't_h) Env.t) Eq.t; *)
+    } -> ('env, 'l_hd, 'l_tl, 'e_annot, 'mid_h, 'hd_annot, 'hd_h, 'tl_annot, 'tl_h) merge_result
+
+
+  let rec merge : type e l l' hd_a hd_h e_a tl_a tl_h mid_h e_h.
+    (e, l', <ind:hd_a; size:hd_h>, <ind:e_a*tl_a; size:mid_h>) section ->
+    (e, l, <ind:tl_a; size:tl_h>) t ->
+    (e_h, tl_h, mid_h) Nat.plus -> tl_h Nat.t ->
+    (e, l', l, e_a, mid_h, hd_a, hd_h, tl_a, tl_h) merge_result =
+  fun hd tl plus tl_h ->
+    match hd with
+    | [] -> Exists {
+        v = tl;
+        plus = Zero_l;
+        hd_annot_eq = IndAnnotation.zero_l |> Eq.sym;
+        hd_h_eq = Zero_l;
+        res_annot_eq = IndAnnotation.zero_l |> Eq.sym;
+        res_h_eq = Zero_l
+      }
+    | I (hd_hd, plus_hd_hd) :: hd ->
+        let Exists {eq} = partial_ind_annot hd in
+        let Exists {v;plus;hd_annot_eq;hd_h_eq;res_annot_eq;res_h_eq} = merge hd tl plus tl_h in
+        let Exists {sum=tl_h_plus_diff; plus=tl_h_plus_diff_eq} = Nat.add (Nat.plus_l hd_h_eq) tl_h in
+        let Refl = Nat.plus_fun tl_h_plus_diff_eq res_h_eq in
+        let Exists {sum=res_h_plus_size; plus=plus_hd_hd'} = Nat.add (Nat.plus_l plus_hd_hd) tl_h_plus_diff in
+        let v = I (hd_hd, plus_hd_hd') :: v in
+        let Exists {sum=size_plus_diff_h; plus=size_plus_diff_h_eq} = Nat.(add (plus_l plus_hd_hd) (plus_l hd_h_eq)) in
+        let hd_h_eq = Nat.plus_assoc_rec hd_h_eq plus_hd_hd size_plus_diff_h_eq in
+        let res_h_eq = Nat.plus_assoc_rec res_h_eq plus_hd_hd' size_plus_diff_h_eq in
+        Exists {
+          v; plus=Nat.Succ_plus plus;
+          hd_annot_eq=Eq.(IndAnnotation.(morphism Refl hd_annot_eq ++ sym assoc));
+          hd_h_eq=hd_h_eq;
+          res_annot_eq=Eq.(IndAnnotation.(morphism Refl res_annot_eq ++ sym assoc));
+          res_h_eq;
+        }
+
 end
 
 module Patterns = struct
@@ -1902,6 +2009,13 @@ module Patterns = struct
           <ind: 'end_ind; size: 'end_size>) section ->
             ('env, 'length, 'ind, 'end_ind, 'end_size) exists_section
               [@@ocaml.unboxed]
+
+  let unsafe_morphism : type e l ind ind' size end_ind end_ind' end_size.
+    (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+    (end_ind IndAnnotation.t, end_ind' IndAnnotation.t) Eq.t ->
+    (e, l, <ind:ind; size:size>, <ind:end_ind; size:end_size>) section ->
+    (e, l, <ind:ind'; size:size>, <ind:end_ind'; size:end_size>) section =
+  fun _ _ s -> Obj.magic s
 
   let lift n v =
     map { f = fun (type a t) (I (p, sum) : (_, a, t) A.t) : (_, a, t) A.t ->
@@ -1923,7 +2037,7 @@ module Tomatch = struct
   let height t = t.return_pred_height
 
   module A = IndAnnotation
-  let morphism : type ind ind'. (ind A.t, ind' A.t) Eq.t -> ('e, ind, 'h) t -> ('e, ind', 'h) t =
+  let morphism : type ind ind' h. (ind A.t, ind' A.t) Eq.t -> ('e, ind, h) t -> ('e, ind', h) t =
     fun eq ({inductive_type;_} as tomatch) ->
     {tomatch with inductive_type=TomatchType.morphism eq inductive_type}
 
@@ -2021,6 +2135,13 @@ module TomatchVector = struct
         length : 'length Nat.t;
         nb_args : 'nb_args Nat.t; } ->
           ('env, 'return_pred_height) make_return_pred_context
+
+  let unsafe_morphism : type e l ind ind' size end_ind end_ind' end_size.
+    (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+    (end_ind IndAnnotation.t, end_ind' IndAnnotation.t) Eq.t ->
+    (e, l, <ind:ind; size:size>, <ind:end_ind; size:end_size>) section ->
+    (e, l, <ind:ind'; size:size>, <ind:end_ind'; size:end_size>) section =
+  fun _ _ s -> Obj.magic s
 
 (*
   let context (type env return_pred_height)
@@ -2654,6 +2775,12 @@ module PrepareTomatch (EqnLength : Type) = struct
 
     type 'env exists =
         Exists : ('env, 'ind, 'height) t -> 'env exists [@@ocaml.unboxed]
+
+    let morphism : type e ind ind' r.
+      (ind IndAnnotation.t, ind' IndAnnotation.t) Eq.t ->
+      (e, ind, r) t -> (e, ind', r) t =
+    fun e {tomatch;pats} ->
+      {pats=Vector.map (TypedPattern.morphism_exists e) pats; tomatch=Tomatch.morphism e tomatch}
 
     let height t = Tomatch.height t.tomatch
 
@@ -3815,11 +3942,17 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let Exists {before=skipped_tomatches; elem=I tomatch; after=tail_tomatches; plus=split_plus} =
       TomatchVector.get_split problem.tomatches k_nat (Exists k) in
     let Exists { nat; eq } = Height.to_nat tomatch.return_pred_height in
-    (* let tail_tomatches = TomatchVector.tl problem.tomatches in *)
     let tail_height = TomatchVector.height tail_tomatches in
+    let Exists {
+        v = res_tomatches; plus=res_plus;
+        hd_annot_eq; hd_h_eq; res_annot_eq; res_h_eq } = TomatchVector.merge skipped_tomatches tail_tomatches in
+    let Exists (type res_annot) ({diff=res_tomatches_annot; eq=res_annot_eq'} : (res_annot, _, _) IndAnnotation.diff_args) =
+      TomatchVector.partial_ind_annot res_tomatches in
     let Exists {diff=skipped_heigth; plus=skipped_plus} = TomatchVector.partial_height skipped_tomatches in
+    let skipped_heigth = Eq.cast (Height.morphism (Obj.magic Eq.Refl)) skipped_heigth in
+    (* WATODO compute the above height in the merge function *)
     let return_pred = ReturnPred.morphism Refl
-             Eq.(sym skipped_plus ++ sym Env.assoc) problem.return_pred in
+             Eq.(hd_h_eq ++ sym Env.assoc) problem.return_pred in
     let substl = get_tomatch_args (GlobalEnv.env problem.env) tomatch
                  |> Vector.map (ETerm.lift skipped_heigth) |> Height.Vector.of_vector in
     (* WATODO: this means tomatches are all independent and typed in 'env as hugo said *)
@@ -3830,22 +3963,39 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let return_pred = ReturnPred.substnl' substl tail_height return_pred in
     let _ = skipped_tomatches, tomatch, tail_tomatches in
     let Exists {diff=skipped_inds; eq=skipped_ind_plus} = TomatchVector.partial_ind_annot skipped_tomatches in
-    let self_name = Vector.find_name Fun.id vars in
+    let self_name = Vector.find_name Fun.id vars in (*WA: get any name from the list of eqns trivial names at pos k *)
     let* rel0, (_declaration, env) =
-      EvarMapMonad.use (fun sigma ->
+      EvarMapMonad.use (fun sigma -> (* WATODO: why do we extend the environment with the name exactly ? *)
       push_local_name sigma self_name tomatch.judgment problem.env) in
-    (* WA VERY NEXT TODO: adapt make_eqn now *)
-    let tomatches = TomatchVector.lift Height.one tail_tomatches in
+    (* WA VERY NEXT TODO: do work to remove current Obj.magic uses  *)
+    let tomatches = TomatchVector.lift Height.one res_tomatches in
+    let res_annot_access = Eq.(sym IndAnnotation.zero_r ++ res_annot_eq' |> sym) in
+    let Succ_plus split_plus = Nat.move_succ_left split_plus in
+    let Refl = Nat.(plus_fun split_plus (plus_commut (plus_l split_plus) res_plus)) in
+    let tomatches = TomatchVector.unsafe_morphism res_annot_access Refl tomatches in
     let* rel_eqns =
       EvarMapMonad.use (fun sigma ->
-    let make_eqn (type elem_ind tail_ind head_ind) (Exists { v; loc } :
-        (env, tail_length Nat.succ, head_ind * (elem_ind * tail_ind)) Clause.t) :
-        _ Rel.t option * (env * Nat.one, tail_length, tail_ind) Clause.t =
-      let I (pat, plus) :: pats = v.pats in
+    let make_eqn (Exists { v; loc } :
+        (env, tail_length Nat.succ, total_ind) Clause.t) :
+        _ Rel.t option * (env * Nat.one, tail_length, res_annot) Clause.t =
+      let Exists {plus=pats_plus; before=skipped_pats; elem=I (pat, plus_elem_pat); after=pats_tail} =
+        Patterns.get_split v.pats k_nat (Exists k) in
+      let Exists {
+          v=pats; plus=pats_plus'; hd_annot_eq=hd_annot_eq_pats; res_annot_eq=res_annot_eq_pats;
+          hd_h_eq=hd_h_eq_pats; res_h_eq=res_h_eq_pats;
+      } = Patterns.merge skipped_pats pats_tail plus_elem_pat @@ (Patterns.size pats_tail) in
       let var, Refl = Option.get (TypedPattern.get_var pat) in
       let rel1, (_, env) = push_local_name sigma var tomatch.judgment v.env in
       let pats = Patterns.lift Height.one pats in
-      let Succ_plus Zero_l = plus in
+      let Succ_plus Zero_l = plus_elem_pat in
+      let Succ_plus hd_h_eq_pats = Nat.move_succ_left hd_h_eq_pats in
+      let Succ_plus pats_plus = Nat.(plus_commut (S (plus_l pats_plus')) pats_plus) in
+      let Refl = Nat.plus_fun pats_plus' pats_plus in
+      let _hd_annot_link = Eq.(sym hd_annot_eq ++ hd_annot_eq_pats) in
+      let annot_link : (_, res_annot IndAnnotation.t) Eq.t = Obj.magic Eq.Refl in
+        (* WA: fix for above: add list length in IndAnnotation.t with axioms about safe inversion in that case *)
+      let pats = Patterns.unsafe_morphism annot_link Refl pats in
+      let Refl = Nat.plus_fun res_h_eq_pats hd_h_eq_pats in
       let rhs =
         Rhs.consume (ETerm.lift Height.one
           (EJudgment.uj_val tomatch.judgment) |>
@@ -3862,6 +4012,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let return_pred = ReturnPred.lift Height.one return_pred in
     let previously_bounds : _ Vector.t =
       rel :: Vector.map (Rel.lift Height.one) problem.previously_bounds in
+    let return_pred = ReturnPred.morphism Refl (Eq.sym res_h_eq) return_pred in
     let* judgment =
       MatchContext.compile_loop
         { env; tomatches; eqns; return_pred; previously_bounds;

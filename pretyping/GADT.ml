@@ -1387,16 +1387,20 @@ module IndAnnotation = struct
 
   let zero_l : type a. ((unit * a) t, a t) Eq.t = transtype
 
+  let zero_r : type a. ((a * unit) t, a t) Eq.t = transtype
+
   let zero : unit t = Eq.(cast (sym eq) ())
 
   let morphism : type a b c d. (a t, c t) Eq.t -> (b t, d t) Eq.t -> ((a*b) t, (c*d) t) Eq.t = fun _ _ -> transtype
 
   let add : type a b. a t -> b t -> (a * b) t = fun _ _ -> Eq.(cast (sym eq) ())
 
-  type ('h_start, 'h_end) diff = Exists : {
-      diff : 'a t;
-      eq : (('a * 'h_end) t, 'h_start t) Eq.t
-    } -> ('h_start, 'h_end) diff
+
+  type ('a, 'h_start, 'h_end) diff_args = {
+    diff : 'a t;
+    eq : (('a * 'h_end) t, 'h_start t) Eq.t
+  }
+  type ('h_start, 'h_end) diff = Exists : ('a, 'h_start, 'h_end) diff_args -> ('h_start, 'h_end) diff
 
   let diff_zero = Exists { diff = zero; eq=zero_l }
   let diff_add (a : 'a t) (Exists {diff; eq} : ('b, 'c) diff) =
