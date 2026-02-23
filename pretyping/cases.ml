@@ -1004,6 +1004,8 @@ module ConstructorSummary = struct
       desc : Inductiveops.constructor_summary;
       cstr : 'ind Constructor.t;
       args : ('env, 'arity, 'args) RelContext.t;
+      (* WA: arity is length of the context, args is the number of declarations
+         (i.e args - letins) (in the paper, args is Δk *)
       arity : 'arity Nat.t;
       concl_realargs : (('env * 'arity) ETerm.t, 'nrealargs) Vector.t;
       nrealargs : 'nrealargs Nat.t;
@@ -1496,6 +1498,10 @@ module Pattern = struct
           c ++ str"(" ++ prlist_with_sep (fun () -> str",") print_cases_pattern ps ++ str")as" ++ x |> h
     in print_cases_pattern (DAst.get (to_concrete s))
 
+  let print_exists (s : exists) : Pp.t =
+    let Exists s = s in print s
+  [@@ocaml.warning "-32"] (* can be unused *)
+
   (* let print_exists (s : exists) : Pp.t = let Exists s = s in print s (* unused *) *)
 
   let print_args (args : (_,_,_) args) : Pp.t =
@@ -1505,6 +1511,7 @@ module Pattern = struct
       | arg :: args -> printed_args args (print arg :: acc)
     in
     Pp.(prlist_with_sep (fun()->str",") Fun.id (printed_args args []))
+  [@@ocaml.warning "-32"] (* can be unused *)
 end
 
 module TomatchType = struct
@@ -1703,7 +1710,7 @@ module type IndSizedTypeS = sig
 
   val height : ('env, 'ind, 'size) t -> 'size Height.t
 
-  val morphism : ('ind IndAnnotation.t, 'ind' IndAnnotation.t) Eq.t -> ('e, 'ind, 's) t -> ('e, 'ind', 's) t
+  val morphism : ('ind IndAnnotation.t, 'ind' IndAnnotation.t) Eq.t -> ('e, 'ind, 's) t -> ('e, 'ind', 's) t [@@ocaml.warning "-32"]
 end
 
 module IndSizeAnnotation (S : Type3S) (* : AnnotationS but more than that [WA] *) = struct
@@ -1748,12 +1755,12 @@ module IndSizeVector (S : IndSizedTypeS) = struct
     | [] -> Height.diff_zero
     | I hd :: tl -> Height.diff_add (S.height hd) (partial_height tl)
 
-  let rec morphism : type e l a b c n m o.
-    (c IndAnnotation.t, (a * b) IndAnnotation.t) Eq.t ->
-    (o Env.t, (n * m) Env.t) Eq.t ->
-    (e, l, <ind:c; size:o>, <ind:a; size:m>) section ->
-    (e, l, <ind:b; size:n>) t =
-  fun e1 e2 sec -> Obj.magic (sec)
+  (* let morphism : type e l a b c n m o. *)
+  (*   (c IndAnnotation.t, (a * b) IndAnnotation.t) Eq.t -> *)
+  (*   (o Env.t, (n * m) Env.t) Eq.t -> *)
+  (*   (e, l, <ind:c; size:o>, <ind:a; size:m>) section -> *)
+  (*   (e, l, <ind:b; size:n>) t = *)
+  (* fun e1 e2 sec -> Obj.magic (sec) *)
 
 
 
@@ -2222,8 +2229,8 @@ module TomatchVector = struct
 
   let print env sigma v =
     let rec aux :
-      type env length annot ret_heigth.
-      env Env.t -> Evd.evar_map -> (env, length, <ind:annot; size:ret_heigth>) t -> Pp.t list -> Pp.t list =
+      type env length annot ret_heigth annot_tl.
+      env Env.t -> Evd.evar_map -> (env, length, <ind:annot; size:ret_heigth>, annot_tl) section -> Pp.t list -> Pp.t list =
       fun env sigma v acc ->
         match v with
         | I hd :: tl -> aux env sigma tl ((EJudgment.print env sigma hd.judgment)::acc)
@@ -2239,6 +2246,13 @@ module Rhs = struct
       matches : (('env * 'nrealdecls) ETerm.t, 'matches) Vector.t;
     }
   (* WATODO *)
+
+  let print_args : ('e, 'm, 'ndecls, 'nargs) args -> Evd.evar_map -> Pp.t =
+    fun {globenv; context; return_pred; matches} sigma ->
+    let open Pp in
+    str "GLOBENV>CONTEXT:: " ++ brk (4, 4) ++ GlobalEnv.print (Obj.magic context) globenv sigma (str " ;;; ")
+    ++ brk (0, 0) ++ str "MATCHES: " ++ Vector.print (ETerm.print (GlobalEnv.env globenv) sigma) (str " ;;; ") matches
+  [@@ocaml.warning "-32"] (* can be unused *)
 
   type ('env, 'matches, 'nrealdecls, 'nrealargs) f =
       ('env, 'matches, 'nrealdecls, 'nrealargs) args ->
@@ -2670,12 +2684,12 @@ module ReturnPred = struct
       Eq.(cast (GlobalEnv.morphism (Env.morphism Refl
         (sym (Env.rev_plus context''.decls) ++
           Env.morphism Refl context.eq) ++ sym Env.assoc))) in
-    Pp.(
-      str "previous:" ++ spc () ++
-      pr_enum (ETerm.print (GlobalEnv.env globenv) sigma)
-        (Vector.to_list previous) ++
-      Pp.cut () ++
-      str "return pred:" ++ ETerm.print (GlobalEnv.env globenv') sigma
+    (* Pp. *)(
+      (* str "previous:" ++ spc () ++ *)
+      (* pr_enum (ETerm.print (GlobalEnv.env globenv) sigma) *)
+      (*   (Vector.to_list previous) ++ *)
+      (* Pp.cut () ++ *)
+      (* str "return pred:" ++  *)ETerm.print (GlobalEnv.env globenv') sigma
         return_pred)
   [@@ocaml.warning "-32"] (* can be unused *)
 
@@ -2716,7 +2730,7 @@ module PatternMatchingProblem = struct
     }
 
 
-  let rec find_trivial_position :
+  let find_trivial_position :
     type env tomatch_length eqn_length tomatch_ind.
     ((env, tomatch_length Nat.succ, tomatch_ind) Clause.t, eqn_length) Vector.t ->
       ((Names.Name.t, eqn_length) Vector.t * tomatch_length Nat.succ Fin.t) option =
@@ -2739,7 +2753,8 @@ module PatternMatchingProblem = struct
 
 
 
-  let print : type eqn_length. Evd.evar_map -> ('env,_,_,eqn_length,_,_) t -> Pp.t = fun sigma p ->
+  let print : type eqn_length. Evd.evar_map -> ('env,_,_,eqn_length,_,_) t -> print_branches:(bool) -> print_env:(bool) -> Pp.t =
+  fun sigma p ~print_branches ~print_env ->
     let eqn_num = Vector.length p.eqns in
     let nmatches = TomatchVector.length p.tomatches |> Nat.to_int in
     match p.eqns with
@@ -2757,13 +2772,21 @@ module PatternMatchingProblem = struct
       k p2
     | (Exists {v={pats=p1;_}} :: []) when nmatches = 0 && false -> Pp.str "Probably a trivial 1-problem"
     | _ ->
+      let hypnaming = Evarutil.RenameExistingBut (Evarutil.VarSet.empty) in
+      let env = GlobalEnv.env p.env in
+      let Exists {context} = TomatchVector.make_return_pred_context p.tomatches in
+      let env_rels = Environ.nb_rel (Eq.cast Env.eq env) in
       Pp.(
-        str "tomatches={" ++ TomatchVector.print (GlobalEnv.env p.env) sigma p.tomatches ++ str "}"
+        (if print_env then Env.print env ++ cut () ++ cut () else str"ENVLENGTH: " ++ int env_rels)++
+        str "MATCH(" ++ TomatchVector.print env sigma p.tomatches ++ str ")"
         ++
-        str "  Number of equations: " ++ int (eqn_num |> GADT.Nat.to_int)
+        str " RETURN " ++ ReturnPred.print ~hypnaming p.env sigma (Exists context) p.return_pred
         ++
-        str "  Equations:" ++ brk (10,4) ++ (Vector.print Clause.print (brk (5,4)) p.eqns)
+        str " WITH[" ++ int (eqn_num |> GADT.Nat.to_int) ++ str "]"
+        ++
+        brk (10,4) ++ (if print_branches then Vector.print Clause.print (brk (5,4)) p.eqns else str"BRANCHES...")
       ) |> Pp.flatten
+  [@@ocaml.warning "-32"] (* can be unused *)
 end
 
 module PrepareTomatch (EqnLength : Type) = struct
@@ -3866,7 +3889,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       return (PrepareTomatch.TomatchWithContextVector.of_vector vector)
   end
 
-  let debug = false
+  let debug = false [@@ocaml.warning "-32"] (* can be unused *)
 
   let compile_base (type env)
       (problem :
@@ -3881,31 +3904,21 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let matches =
       Eq.(cast (Vector.eq (ETerm.morphism (sym Env.zero_r)))) rhs.matches in
     let Refl = Nat.zero_r_eq rhs.cont.sum in
-    let* () =
-    if debug then
-    begin
-      EvarMapMonad.use (fun sigma ->
-      Format.eprintf "compile_base in env: %a@.return pred: %a@."
-        Pp.pp_with (Env.print (GlobalEnv.env globenv))
-        Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma return_pred))
-    end
-    else
-      EvarMapMonad.use (fun _sigma -> ()) in
+    (* let* _WA = *)
+    (*   EvarMapMonad.use (fun sigma -> *)
+    (*   deprintf "@.@.In compile_base in env: %a@.return pred: %a@." *)
+    (*     Pp.pp_with (Env.print (GlobalEnv.env globenv)) *)
+    (*     Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma return_pred)) in *)
     let* result = rhs.cont.f.f
         { globenv; context = []; return_pred; matches } in
-    let* () =
-    if debug then
-    begin
-      EvarMapMonad.use (fun sigma ->
-      Format.eprintf "Base: @[%a@] (return pred: @[%a@])@."
-        Pp.pp_with (EJudgment.print (GlobalEnv.env globenv) sigma result)
-        Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma
-                      return_pred);
-      Format.eprintf "in env @[%a@]@."
-        Pp.pp_with (Env.print (GlobalEnv.env globenv)));
-    end
-    else
-      EvarMapMonad.use (fun _sigma -> ()) in
+    (* let* _WA = *)
+    (*   EvarMapMonad.use (fun sigma -> *)
+    (*   deprintf "In compile_base computed result:@;<4 4>@[%a@] (return pred: @[%a@])@." *)
+    (*     Pp.pp_with (EJudgment.print (GlobalEnv.env globenv) sigma result) *)
+    (*     Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma *)
+    (*                   return_pred); *)
+    (*   Format.eprintf "in env @[%a@]@." *)
+    (*     Pp.pp_with (Env.print (GlobalEnv.env globenv))) in *)
     let* (result, _trace) =
       EJudgment.inh_conv_coerce_to ~program_mode:MatchContext.program_mode
         ~resolve_tc:true (GlobalEnv.env globenv)
@@ -3927,18 +3940,20 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         EJudgment.uj_val tomatch.judgment :: Vector.rev args
 
   let compile_case_trivial
-      (type env ind tail_length total_ind eqns_length total_return_pred_heigth
-        tail_height previously_bounds)
+      (type env tail_length total_ind eqns_length total_return_pred_heigth
+        previously_bounds)
       (* (tomatch : (env, ind, return_pred_height) Tomatch.t) *)
       (vars : (Names.Name.t, eqns_length) Vector.t)
       (Exists k : tail_length Nat.succ Fin.t)
       (problem :
          (env, tail_length Nat.succ, total_ind, eqns_length,
            total_return_pred_heigth, previously_bounds)
-         PatternMatchingProblem.t) :
+         PatternMatchingProblem.t) (call_id : int) :
       env EJudgment.t EvarMapMonad.t =
     let open EvarMapMonad.Ops in
-    let S k_nat = Nat.plus_r k (TomatchVector.length problem.tomatches) in
+    let k_complement = Nat.plus_r k (TomatchVector.length problem.tomatches) in
+    let k_nat = Nat.plus_l k in
+    let k = Nat.(move_succ_right (plus_commut k_complement k) k_nat) in
     let Exists {before=skipped_tomatches; elem=I tomatch; after=tail_tomatches; plus=split_plus} =
       TomatchVector.get_split problem.tomatches k_nat (Exists k) in
     let Exists { nat; eq } = Height.to_nat tomatch.return_pred_height in
@@ -3946,6 +3961,12 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let Exists {
         v = res_tomatches; plus=res_plus;
         hd_annot_eq; hd_h_eq; res_annot_eq; res_h_eq } = TomatchVector.merge skipped_tomatches tail_tomatches in
+    (* let* _WA = EvarMapMonad.use (fun sigma -> *)
+    (*     deprintf "@.In compile_case_trivial n°%d with k_nat=%d...tomatches=@;<4 4>@[%a@]@.and skipped=@;<4 4>@[%a@]@.and tomatch=@;<4 4>@[%a@]@." call_id (Nat.to_int k_nat) Pp.pp_with *)
+    (*     (TomatchVector.print (GlobalEnv.env problem.env) sigma res_tomatches) Pp.pp_with *)
+    (*     (TomatchVector.print (GlobalEnv.env problem.env) sigma skipped_tomatches) Pp.pp_with *)
+    (*     (EJudgment.print (GlobalEnv.env problem.env) sigma tomatch.judgment) *)
+    (* ) in *)
     let Exists (type res_annot) ({diff=res_tomatches_annot; eq=res_annot_eq'} : (res_annot, _, _) IndAnnotation.diff_args) =
       TomatchVector.partial_ind_annot res_tomatches in
     let Exists {diff=skipped_heigth; plus=skipped_plus} = TomatchVector.partial_height skipped_tomatches in
@@ -4013,16 +4034,17 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let previously_bounds : _ Vector.t =
       rel :: Vector.map (Rel.lift Height.one) problem.previously_bounds in
     let return_pred = ReturnPred.morphism Refl (Eq.sym res_h_eq) return_pred in
+    (* let* WA_ = EvarMapMonad.use ( fun sigma -> *)
+    (*     deprintf "In compile_case_trivial n°%d...@;<5 4>@[Executing...@]@." call_id *)
+    (* ) in *)
     let* judgment =
       MatchContext.compile_loop
         { env; tomatches; eqns; return_pred; previously_bounds;
           expand_self = problem.expand_self;
           allow_destruct_empty = problem.allow_destruct_empty } in
-(*
-    let* sigma = EvarMapMonad.get in
-    Format.eprintf "subst trivial: %a@." Pp.pp_with
-      (EJudgment.print (GlobalEnv.env problem.env) sigma tomatch.judgment);
-*)
+    (* let* WA_ = EvarMapMonad.use (fun sigma -> *)
+    (*     deprintf "Result from compile_case_trivial n°%d: %a@." call_id Pp.pp_with *)
+    (*   (EJudgment.print (GlobalEnv.env problem.env) sigma tomatch.judgment)) in *)
     return (EJudgment.substl
       (Height.Vector.of_vector [EJudgment.uj_val tomatch.judgment])
       judgment)
@@ -4213,6 +4235,17 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
             (env, arity, tail_length, ind_tail)
               prepare_clause) ->
           Pattern.Ops.(clause.v.pats.args.%(i)))) in
+    (* let* _WA = EvarMapMonad.use (fun sigma -> *)
+    (*     deprintf "TYPING TOMATCHES IN PREPARE SUB TOMATCHES: @;<4 4>@[%a@]@." Pp.pp_with @@ *)
+    (*     let open Pp in *)
+    (*     let print ({TomatchTuple.judgment; _}, pats) = *)
+    (*       EJudgment.print (GlobalEnv.env env) sigma judgment ++ *)
+    (*       str " AGAINST: {{" ++ *)
+    (*       Vector.print Pattern.print_exists (str " || ") pats ++ *)
+    (*       str " }}" *)
+    (*     in *)
+    (*     Vector.print print (brk (0, 0)) tomatches *)
+    (* ) in *)
     let* Exists tomatches = T.type_tomatches env tomatches in
     let module V = T.PrepareTomatch.TomatchWithContextVector in
     let section = V.to_tomatch_vector tomatches in
@@ -4954,6 +4987,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
               Pattern.make_vars summary.arity in
             let pats = { as_name = pat.v.name; args; tail } in
             let Exists n = Nat.to_plus summary.arity in
+            (* We're replacing "x" with  C y1 ... yn as x
+               So we're extending the rhs to expect a right extended environment *)
             let rhs = Rhs.produce plus n clause.rhs in
             let clause = CAst.make ?loc Clause.{ clause with pats; rhs } in
             let Succ_plus Zero_l = plus in
@@ -5072,6 +5107,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let j = EJudgment.make case ty in
     return j
 
+  let trivial_calls = ref 0
   let compile_case
       (type env ind tail_length ind_tail eqns_length return_pred_height
         tail_height previously_bounds)
@@ -5085,7 +5121,6 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       Vector.of_list
         (Clause.remove_trailing_eqns (Vector.to_list problem.eqns)) in
     let problem = { problem with eqns } in
-    let module V = Vector.UseMonad (Monad.Option) in
     match
       (PatternMatchingProblem.find_trivial_position problem.eqns, problem.eqns),
       tomatch.inductive_type
@@ -5095,8 +5130,11 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         compile_destruct tomatch desc { problem with allow_destruct_empty = true (* WATODO HACK: find why we destruct twice on empty *) }
        else
          assert false
-    | (Some (vars, k), _), _ ->
-        compile_case_trivial tomatch vars k problem
+    | (Some (vars, Exists k), _), _ ->
+        let tc = !trivial_calls in incr trivial_calls;
+        deprintf "COMPILING TRIVIAL(n°%d) AT POS %d@." tc (Nat.(to_int (plus_l k)));
+        compile_case_trivial vars (Exists k) problem tc
+        (* compile_case_trivial' tomatch vars problem *)
     | (None, _), Not_inductive _ ->
         assert false
 
@@ -5108,14 +5146,11 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
          (env, tomatch_length, ind, eqns_length, return_pred_height,
            previously_bounds) PatternMatchingProblem.t) :
       env EJudgment.t EvarMapMonad.t =
-    let current = !compile_loop_call_number in let _ = incr compile_loop_call_number in
+    let current = !compile_loop_call_number in let _ = incr compile_loop_call_number, current in
     deprintf "@.Entering compile_loop %d..." current;
     let open EvarMapMonad.Ops in
-    let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem) in
+    let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem ~print_branches:false ~print_env:false) in
     deprintf "Problem:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
-    if debug then
-      Format.eprintf "compile in env: %a@."
-        Pp.pp_with (Env.print (GlobalEnv.env problem.env));
     let ret = match problem.tomatches with
     | [] ->
         begin match problem.eqns with
@@ -5257,7 +5292,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (eqns :
          ((env, tomatch_count) Clause.untyped, eqns_length) Vector.t) :
       env EJudgment.t EvarMapMonad.t =
-    deprintf "Entering compile_cases...@.";
+    (* deprintf "Entering compile_cases...@."; *)
     let open EvarMapMonad.Ops in
     let module EqnLength = struct type t = eqns_length end in
     let module T = TypeTomatch (EqnLength) in
@@ -5290,7 +5325,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
        - eqns is now a vector of typed Clause.t, in which the right hand side is a Rhs.t in which the .f closure takes
          the number of declared variables' as arguments to return the correct rhs
     *)
-    if !glob_debug then deprintf "Preparing the return pred context@.";
+    (* deprintf "Preparing the return pred context@."; WA *)
     let Exists return_pred_context =
       TomatchVector.make_return_pred_context tomatches in
     (* Now return_pret_context is the ""concatenation"" of all the pattern-contexts for the inductives. It is the context
@@ -5302,7 +5337,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
        WA: Update: this context does not contain the context for the maximal pattern structure but only shallow one...
     *)
     let* rctx = EvarMapMonad.use (fun sigma -> (GlobalEnv.print return_pred_context.context.context env sigma (Pp.str " ;;; "))) in
-    if !glob_debug then deprintf "Return pred context: %a@." Pp.pp_with rctx;
+    (* deprintf "Return pred context: %a@." Pp.pp_with rctx; WA *)
     (* WATODO: identify all the places where manual axiomatic type coercions are made, and rendre explicite the assumptions
                under which those are sound *)
     let* return_pred =
@@ -5335,9 +5370,9 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       (EJudgment.print (GlobalEnv.env return_pred_env) sigma return_pred)
       Pp.pp_with (Env.print (GlobalEnv.env return_pred_env));
 *)
-    let* _ = EvarMapMonad.use (fun sigma ->
-        if !glob_debug then deprintf "Inverted return pred: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred)
-    ) in
+    (* let* _ = EvarMapMonad.use (fun sigma -> *)
+    (*     if !glob_debug then deprintf "Inverted return pred: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred) *)
+    (* ) in *)
     let return_pred_height = Height.of_nat return_pred_context.length in
     let return_pred_height =
       Eq.(cast (Height.morphism return_pred_context.context.eq))
@@ -5345,14 +5380,14 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let return_pred =
       ReturnPred.make ~generalize:generalize_return_pred return_pred
         return_pred_height in
-    let* _ = EvarMapMonad.use (fun sigma -> let Exists return_pred = return_pred in
-        if !glob_debug then deprintf "Inveted return pred generalized: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred.return_pred)
-    ) in
+    (* let* _ = EvarMapMonad.use (fun sigma -> let Exists return_pred = return_pred in *)
+    (*     if !glob_debug then deprintf "Inveted return pred generalized: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred.return_pred) *)
+    (* ) in *)
     let res = compile_loop
       { env; tomatches; return_pred; eqns;
         previously_bounds = []; expand_self = false;
         allow_destruct_empty = true; } in
-    deprintf "Exiting compile_cases...@.";
+    (* deprintf "Exiting compile_cases...@."; *)
     res
 end
 
@@ -5420,12 +5455,10 @@ let compile_cases ?loc ~(program_mode : bool) (style : Constr.case_style)
     let Exists pats = Pattern.args_of_concrete pats in
     let Refl = Option.get (Nat.is_eq tomatch_count (Pattern.length pats)) in
     let f ({ globenv; return_pred } : _ Rhs.untyped_args) =
-(*
-      let* sigma = EvarMapMonad.get in
-      Format.eprintf "Typing rhs in %a (expected type: %a)." Pp.pp_with
-        (Env.print (GlobalEnv.env globenv))
-        Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma return_pred);
-*)
+      (* let* _WA = EvarMapMonad.use (fun sigma -> *)
+      (* deprintf "@.Typing rhs in %a (expected type: %a).@." Pp.pp_with *)
+      (*   (Env.print (GlobalEnv.env globenv)) *)
+      (*   Pp.pp_with (ETerm.print (GlobalEnv.env globenv) sigma return_pred)) in *)
       judgment_of_glob_constr ~tycon:return_pred globenv rhs in
     let desc : _ Clause.desc =
       { env; ids = Names.Id.Set.of_list ids; pats;
@@ -5446,7 +5479,7 @@ let compile_cases ?loc ~(program_mode : bool) (style : Constr.case_style)
     Compiler.compile_cases ~generalize_return_pred:infer_return_pred env
       { f = return_pred } tomatches eqns in
   let sigma, judgment =
-    deprintf "STARTING MATCHING...@.";
+    (* deprintf "STARTING MATCHING...@."; *)
     if infer_return_pred then
       try_with ~small_inversion:true sigma
     else
@@ -5454,7 +5487,7 @@ let compile_cases ?loc ~(program_mode : bool) (style : Constr.case_style)
         try_with ~small_inversion:false sigma
       with _ ->
         try_with ~small_inversion:true sigma in
-  deprintf "ALMOST ENDED MATCHING...@.";
+  (* deprintf "ALMOST ENDED MATCHING...@."; *)
   EvarMapMonad.run sigma begin
 (*
     let* sigma = EvarMapMonad.get in
