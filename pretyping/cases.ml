@@ -30,6 +30,15 @@ let deprintf fmt =
 let _ = Format.pp_set_max_indent Format.err_formatter 350
 let _ = Format.set_margin 400
 
+let mk_name =
+  let counter = ref 0 in
+  fun name ->
+    if !glob_debug then
+      let now, _ = string_of_int !counter, incr counter in
+      Names.(Name (Id.of_string (name ^ "__" ^ now )))
+    else Names.Name.Anonymous
+
+
 module AbstractDeclaration = struct
   module Self (X : AbstractTermS) = struct
     type ('env, 'nb_args, 'nb_args_tail) desc =
@@ -334,7 +343,7 @@ module AbstractRelContext (X : AbstractTermS) = struct
     | hd :: tl ->
         let tl, height = of_vector_rec tl in
         let hd = X.lift height hd in
-        D.assum Context.anonR hd :: tl, Height.succ height
+        D.assum (Context.annotR@@ mk_name "anon_of_vect_rec") hd :: tl, Height.succ height
 
   let of_vector vector =
     fst (of_vector_rec vector)
@@ -1104,7 +1113,7 @@ let rec adjust_local_defs ?loc pats (args : _ Context.Rel.pt) :
   | (pat :: pats, LocalAssum _ :: decls) ->
       pat :: adjust_local_defs ?loc pats decls
   | (pats, LocalDef _ :: decls) ->
-      (DAst.make ?loc @@ Glob_term.PatVar Anonymous) ::
+      (DAst.make ?loc @@ Glob_term.PatVar (mk_name "adjust_pat")) ::
       adjust_local_defs ?loc pats decls
   | [], [] -> []
   | _ -> raise NotAdjustable
@@ -1143,7 +1152,10 @@ module Pattern = struct
   let var ?loc name =
     CAst.make { name; desc = Var }
 
-  let cstr ?loc ?(name = Names.Name.Anonymous) cstr args =
+  let anon_pat_name = mk_name "anon_pat_var"
+  let anon_as_name = mk_name "anon_cstr_as"
+
+  let cstr ?loc ?(name = anon_as_name) cstr args =
     CAst.make { name; desc = Cstr { cstr; args }}
 
   let ex_var ?loc name = Exists (var ?loc name)
@@ -1205,7 +1217,7 @@ module Pattern = struct
     | O -> Exists { args = []; plus = Nat.Zero_l }
     | S n ->
         let Exists tl = make_vars ?loc n in
-        let args = CAst.make { name = Anonymous; desc = Var } :: tl.args in
+        let args = CAst.make { name = anon_pat_name; desc = Var } :: tl.args in
         let plus = Nat.Succ_plus tl.plus in
         Exists { args; plus }
 
@@ -1455,7 +1467,7 @@ module Pattern = struct
         Exists { pattern; terms }
     | None ->
         let pattern =
-          CAst.make { name = Anonymous; desc = Var } in
+          CAst.make { name = mk_name "anon_nonconstr_as"; desc = Var } in
         Exists { pattern; terms = term :: terms }
   and of_terms_rec :
   type env size_tail length . env Env.t -> Evd.evar_map ->
@@ -1472,7 +1484,7 @@ module Pattern = struct
           if deep then
             of_term env sigma hd terms
           else
-            let pattern = CAst.make { name = Anonymous; desc = Var } in
+            let pattern = CAst.make { name = mk_name "anon_nondeep_arg"; desc = Var } in
             Exists { pattern; terms = hd :: terms } in
         Exists { args = pattern :: args; terms }
 
@@ -2331,7 +2343,8 @@ module Rhs = struct
       let context = ERelContext.morphism (Eq.sym Env.succ) context in
       let j = Eq.(cast (EJudgment.morphism (sym Env.zero_r))) j in
       let Exists push =
-        ERelContext.push context [EDeclaration.local_def Context.anonR j] in
+        let name = Context.annotR @@ mk_name "anon_rhs_dot_consume" in
+        ERelContext.push context [EDeclaration.local_def name j] in
       let Succ_plus Zero_l = Nat.plus_commut Nat.one push.decls in
       let eq' = Eq.(Env.morphism (sym Env.succ) Refl ++ Env.assoc ++
         Env.morphism Refl Env.rev_succ) in
@@ -2777,14 +2790,16 @@ module PatternMatchingProblem = struct
       let Exists {context} = TomatchVector.make_return_pred_context p.tomatches in
       let env_rels = Environ.nb_rel (Eq.cast Env.eq env) in
       Pp.(
-        (if print_env then Env.print env ++ cut () ++ cut () else str"ENVLENGTH: " ++ int env_rels)++
+        let clause_hd = fnl () ++ brk (5, 4) ++ str"| " in
+        str "ENV (with length " ++ int env_rels ++ str")  IS" ++
+        (if print_env then (h (Env.print env)) else str"") ++ fnl () ++
         str "MATCH(" ++ TomatchVector.print env sigma p.tomatches ++ str ")"
         ++
         str " RETURN " ++ ReturnPred.print ~hypnaming p.env sigma (Exists context) p.return_pred
         ++
         str " WITH[" ++ int (eqn_num |> GADT.Nat.to_int) ++ str "]"
-        ++
-        brk (10,4) ++ (if print_branches then Vector.print Clause.print (brk (5,4)) p.eqns else str"BRANCHES...")
+        ++ clause_hd ++
+        (if print_branches then Vector.print Clause.print clause_hd p.eqns else str"BRANCHES...")
       ) |> Pp.flatten
   [@@ocaml.warning "-32"] (* can be unused *)
 end
@@ -3399,7 +3414,7 @@ fun ~allow_new_binders env sigma term context ->
           let j = EJudgment.of_term env sigma term' in
           match
             if allow_new_binders then
-              generalize_judgment env sigma (fun _ -> Context.anonR) j context
+              generalize_judgment env sigma (fun _ -> Context.annotR@@ mk_name "anon_generalize_term") j context
             else
               None
           with
@@ -3521,7 +3536,7 @@ module TomatchTuple = struct
     }
 
   let of_judgment (judgment : 'env EJudgment.t) : 'env t =
-    { judgment; predicate_pattern = (Anonymous, None) }
+    { judgment; predicate_pattern = (mk_name "anon_predicate_of_judgement", None) }
 
   let make_pair (pattern : Pattern.exists) (judgment : 'env EJudgment.t) =
     (of_judgment judgment, Vector.[pattern; Pattern.ex_var (Name (Names.Id.of_string "small_inversion_any_var"))])
@@ -3842,7 +3857,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         is_already_named (EJudgment.uj_val judgment) (GlobalEnv.env env)
       with
       | None -> None, name
-      | Some r -> Some (Rel.lift Height.one r), Anonymous in
+      | Some r -> Some (Rel.lift Height.one r), mk_name "anon_matchctxS_push_local_name" in
     r, push_local_def sigma name' judgment env
 
 (*
@@ -4018,6 +4033,8 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       let pats = Patterns.unsafe_morphism annot_link Refl pats in
       let Refl = Nat.plus_fun res_h_eq_pats hd_h_eq_pats in
       let rhs =
+        (* WA TODO: this actually seems fishy, I think its not sound when the compiled trivial variable
+                    appears in the RHS *)
         Rhs.consume (ETerm.lift Height.one
           (EJudgment.uj_val tomatch.judgment) |>
           Eq.cast (ETerm.morphism Env.succ)) v.rhs tomatch.judgment |>
@@ -4072,7 +4089,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       InductiveFamily.build_dependent_inductive (GlobalEnv.env env)
         ind.family in
     let subcontext =
-      ERelContext.(EDeclaration.assum Context.anonR ty :: arity) in
+      ERelContext.(EDeclaration.assum (Context.annotR@@ mk_name "anon_invert_ret_pred") ty :: arity) in
     let* subenv =
       EvarMapMonad.use (fun sigma ->
       push_rel_context sigma (ERelContext.with_height subcontext) env) in
@@ -4477,7 +4494,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       let self_tomatch =
         Tomatch.make_not_inductive
           (EJudgment.lift generalize_count self_judgment)
-          Anonymous in
+          (mk_name "anon_cmp_branch_bdy_self_tomatch") in
       let new_tomatches =
         TomatchVector.append section (I self_tomatch :: new_tail_tomatches)
           plus in
@@ -4684,7 +4701,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
                   Pattern.Ops.(refine.result.patterns.%(i)) judgment) in
             let generalizable =
               ERelContext.to_rel_vector_decls args |> Vector.rev_map
-                (TomatchTuple.make_pair (Pattern.ex_var Anonymous)) in
+                (TomatchTuple.make_pair (Pattern.ex_var@@ mk_name "anon_compile_branch")) in
             let Exists { vector = tomatches; plus = tomatches_plus } =
               Vector.Ops.(generalizable @ refine_tomatches) in
             let tomatch_length = Vector.length tomatches in
@@ -5149,7 +5166,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     let current = !compile_loop_call_number in let _ = incr compile_loop_call_number, current in
     deprintf "@.Entering compile_loop %d..." current;
     let open EvarMapMonad.Ops in
-    let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem ~print_branches:false ~print_env:false) in
+    let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem ~print_branches:true ~print_env:true) in
     deprintf "Problem:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
     let ret = match problem.tomatches with
     | [] ->
