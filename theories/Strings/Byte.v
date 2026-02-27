@@ -15,11 +15,18 @@ Require Export Coq.Init.Byte.
 
 Local Set Implicit Arguments.
 
+(* Definition thing (a b: bool * bool) : bool :=
+ *    let '(a0, a1) := a in
+ *    let '(b0, b1) := b in
+ *    true. *)
+
 Definition eqb (a b : byte) : bool
   := let '(a0, (a1, (a2, (a3, (a4, (a5, (a6, a7))))))) := to_bits a in
      let '(b0, (b1, (b2, (b3, (b4, (b5, (b6, b7))))))) := to_bits b in
      (Bool.eqb a0 b0 && Bool.eqb a1 b1 && Bool.eqb a2 b2 && Bool.eqb a3 b3 &&
           Bool.eqb a4 b4 && Bool.eqb a5 b5 && Bool.eqb a6 b6 && Bool.eqb a7 b7)%bool.
+
+Print eqb.
 
 Module Export ByteNotations.
   Export ByteSyntaxNotations.
@@ -30,7 +37,6 @@ Lemma byte_dec_lb x y : x = y -> eqb x y = true.
 Proof. intro; subst y; destruct x; reflexivity. Defined.
 
 
-Check 1.
 
 Lemma byte_dec_bl x y (H : eqb x y = true) : x = y.
 Proof.
@@ -58,7 +64,6 @@ Definition byte_eq_dec (x y : byte) : {x = y} + {x <> y}
 
 Section nat.
 
-  Check 10.
   Definition to_nat (x : byte) : nat
     := match x with
        | x00 => 0
@@ -317,7 +322,7 @@ Section nat.
        | xfd => 253
        | xfe => 254
        | xff => 255
-       end. Check 11.
+       end.
 
   Set SmallInversion Debug.
 
@@ -326,8 +331,8 @@ Section nat.
        | 0 => Some x00
        | 1 => Some x01
        | 2 => Some x02
-       (* | 3 => Some x03
-        * | 4 => Some x04
+       | 3 => Some x03
+       (* | 4 => Some x04
         * | 5 => Some x05
         * | 6 => Some x06
         * | 7 => Some x07
@@ -341,6 +346,7 @@ Section nat.
         * | 15 => Some x0f
         * | 16 => Some x10
         * | 17 => Some x11
+
         * | 18 => Some x12
         * | 19 => Some x13
         * | 20 => Some x14
@@ -353,8 +359,8 @@ Section nat.
         * | 27 => Some x1b
         * | 28 => Some x1c
         * | 29 => Some x1d
-        * | 30 => Some x1e *)
-       (* | 31 => Some x1f
+        * | 30 => Some x1e
+        * | 31 => Some x1f
         * | 32 => Some x20
         * | 33 => Some x21
         * | 34 => Some x22
@@ -580,7 +586,9 @@ Section nat.
         * | 254 => Some xfe
         * | 255 => Some xff *)
        | _ => None
-       end. Check 13. Unset Printing Matching. Print of_nat.
+       end.
+       Unset Printing Matching. Print of_nat.
+       Unset SmallInversion Debug.
 
   Lemma of_to_nat x : of_nat (to_nat x) = Some x.
   Proof. destruct x; reflexivity. Qed.

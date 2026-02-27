@@ -31,11 +31,14 @@ let _ = Format.pp_set_max_indent Format.err_formatter 350
 let _ = Format.set_margin 400
 
 let mk_name =
-  let counter = ref 0 in
+  let open Map.Make(String) in
+  let counter : int t ref = ref empty in
   fun name ->
     if !glob_debug then
-      let now, _ = string_of_int !counter, incr counter in
-      Names.(Name (Id.of_string (name ^ "__" ^ now )))
+      let now = match find_opt name !counter with
+                | None -> counter:=add name 0 !counter; "0"
+                | Some n -> counter:=add name (n+1) !counter; string_of_int (n+1)
+      in Names.(Name (Id.of_string (name ^ "__" ^ now )))
     else Names.Name.Anonymous
 
 
@@ -1251,8 +1254,11 @@ module Pattern = struct
   type size_tail . Glob_term.cases_pattern -> size_tail size_exists = fun p ->
     let loc = p.loc in
     match DAst.get p with
-    | PatVar name -> Exists (CAst.make ?loc { name; desc = Var })
+    | PatVar name ->
+        let name = match name with Anonymous -> mk_name "_user_var" | _ -> name in
+        Exists (CAst.make ?loc { name; desc = Var })
     | PatCstr (cstr, args, name) ->
+        let name = match name with Anonymous -> mk_name "_user_noas" | _ -> name in
         let cstr = Constructor.of_concrete cstr in
         let Exists args = args_of_concrete args in
         Exists (CAst.make ?loc { name; desc = Cstr { cstr; args }})
@@ -3556,6 +3562,7 @@ module type CompilerS = sig
       'env EJudgment.t EvarMapMonad.t
 
   val compile_loop :
+      ?from_where:string ->
       ('env, 'tomatch_length, 'tomatch_ind, 'eqns_length, 'return_pred_height,
         'previously_bounds)
         PatternMatchingProblem.t -> 'env EJudgment.t EvarMapMonad.t
@@ -3818,6 +3825,7 @@ module type MatchContextS = sig
   val small_inversion : bool
 
   val compile_loop :
+      ?from_where:string ->
       ('env, 'tomatch_length, 'tomatch_ind, 'eqns_length, 'return_pred_height,
         'previously_bounds)
         PatternMatchingProblem.t -> 'env EJudgment.t EvarMapMonad.t
@@ -4055,7 +4063,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     (*     deprintf "In compile_case_trivial n°%d...@;<5 4>@[Executing...@]@." call_id *)
     (* ) in *)
     let* judgment =
-      MatchContext.compile_loop
+      MatchContext.compile_loop ~from_where:"<Compile Case Trivial>"
         { env; tomatches; eqns; return_pred; previously_bounds;
           expand_self = problem.expand_self;
           allow_destruct_empty = problem.allow_destruct_empty } in
@@ -4199,7 +4207,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
       expand_self = true;
       allow_destruct_empty = true;
     } in
-    let* judgment = MatchContext.compile_loop problem in
+    let* judgment = MatchContext.compile_loop ~from_where:"<Invert Return Pred>" problem in
     return (EJudgment.uj_val judgment)
 
   type ('env, 'arity, 'size, 'tail_length, 'ind_tail, 'size_tail)
@@ -4382,7 +4390,10 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
           let names =
             new_pats |> Patterns.to_vector { f = fun (type a b)
               (I (pat, _) : (_, a, b) Patterns.A.t) ->
-                TypedPattern.get_name pat } in
+                match TypedPattern.get_name pat with
+                | Anonymous -> mk_name "_cmp_branch_bdy_newpats"
+                | x -> x
+          } in
           let context = ERelContext.set_names (Vector.rev names) args in
           let generalized_context =
             make_generalized_context (GlobalEnv.env clause.env) in
@@ -4393,7 +4404,11 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
               (ERelContext.with_height generalized_context) in
           let Exists new_pats = Patterns.resize new_pats in
           let as_pat =
-            CAst.make { TypedPattern.name = clause.pats.as_name; desc = Var } in
+            let name = match clause.pats.as_name with
+                       | Anonymous -> mk_name "_branch_body_snd"
+                       | x -> x
+            in
+            CAst.make { TypedPattern.name; desc = Var } in
           let old_pats =
             Patterns.exliftn Lift.(height & + nrealdecls') clause.pats.tail in
           let pats =
@@ -4590,7 +4605,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
         expand_self;
         allow_destruct_empty = allow_destruct_empty;
       } in
-      let* judgment = MatchContext.compile_loop sub_problem in
+      let* judgment = MatchContext.compile_loop ~from_where:"<Compile Branch Body>" sub_problem in
       let sub_return_pred =
         ETerm.substl vector (ReturnPred.get generalized_return_pred) in
 (*
@@ -4810,7 +4825,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
               expand_self = true;
               allow_destruct_empty = true;
             } in
-            let* body = MatchContext.compile_loop problem in
+            let* body = MatchContext.compile_loop ~from_where:"<Compile Branch>" problem in
             return (EJudgment.uj_val body) in
       return (ERelContext.it_mkLambda_or_LetIn (ERelContext.with_height args)
         branch)
@@ -5159,15 +5174,16 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
   let compile_loop
       (type env tomatch_length ind eqns_length return_pred_height
         previously_bounds)
+      ?(from_where="unknown")
       (problem :
          (env, tomatch_length, ind, eqns_length, return_pred_height,
            previously_bounds) PatternMatchingProblem.t) :
       env EJudgment.t EvarMapMonad.t =
     let current = !compile_loop_call_number in let _ = incr compile_loop_call_number, current in
-    deprintf "@.Entering compile_loop %d..." current;
+    deprintf "@.Entering compile_loop n°%d, called from %s..." current from_where;
     let open EvarMapMonad.Ops in
     let* pb_pp = EvarMapMonad.use(fun sigma -> PatternMatchingProblem.print sigma problem ~print_branches:true ~print_env:true) in
-    deprintf "Problem:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
+    deprintf "Problem is:@;<5 4>@[%a@]@." Pp.pp_with pb_pp;
     let ret = match problem.tomatches with
     | [] ->
         begin match problem.eqns with
@@ -5400,7 +5416,7 @@ module Make (MatchContext : MatchContextS) : CompilerS = struct
     (* let* _ = EvarMapMonad.use (fun sigma -> let Exists return_pred = return_pred in *)
     (*     if !glob_debug then deprintf "Inveted return pred generalized: %a@." Pp.pp_with (ETerm.debug_print sigma return_pred.return_pred) *)
     (* ) in *)
-    let res = compile_loop
+    let res = compile_loop ~from_where:"<Compile Cases>"
       { env; tomatches; return_pred; eqns;
         previously_bounds = []; expand_self = false;
         allow_destruct_empty = true; } in
