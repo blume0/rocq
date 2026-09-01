@@ -1150,6 +1150,10 @@ module Env = struct
     Termops.Internal.print_env (Eq.cast eq env)
   [@@ocaml.warning "-32"] (* can be unused *)
 
+  let print_short (env : 'env t) (sigma : Evd.evar_map) : Pp.t =
+    Termops.print_env_short (Eq.cast eq env) sigma
+  [@@ocaml.warnign "-32"] (* can be unused *)
+
   let concrete (env : 'env t) : Environ.env =
     Eq.cast eq env
 end

@@ -1,0 +1,1042 @@
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        _ => ???
+        Constr(nat,0,2)(Constr(nat,0,2)(Constr(nat,0,1)()as_)as_)as_ => ???
+        Constr(nat,0,2)(Constr(nat,0,1)()as_)as_ => ???
+        Constr(nat,0,1)()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={?y0 : ?T0 ;;; n : nat}  Number of equations: 3  Equations:
+        _,_ => ???     _,Constr(nat,0,2)(Constr(nat,0,1)()as_)as_ => ???
+        _,Constr(nat,0,1)()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=1} ;;; _ANONYMOUS_REL_2 : ?T2@{
+                                                 n0:=0}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4 ;;; 
+    n1 : nat}  Number of equations: 1  Equations:          
+    _,_,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_3 : ?T2@{n0:=S n1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d
+ "s/Constr(nat,0,2)/S/g"
+1                                         
+     : nat
+10
+     : nat
+11
+     : nat
+STARTING MARCHING...
+Entering compile_cases...
+Preparing the return pred context
+Return pred context: (x:Ind(nat,0))
+Inverted return pred: (Ind(option,0) Ind(byte,0))
+Inveted return pred generalized: (Ind(option,0) Ind(byte,0))
+Entering compile_loop...Exiting compile_cases...
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        _ => ???
+        S(S(Constr(nat,0,1)()as_)as_)as_ => ???
+        S(Constr(nat,0,1)()as_)as_ => ???
+        Constr(nat,0,1)()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={?y0 : ?T0 ;;; n : nat}  Number of equations: 3  Equations:
+        _,_ => ???     _,S(Constr(nat,0,1)()as_)as_ => ???
+        _,Constr(nat,0,1)()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=1} ;;; _ANONYMOUS_REL_2 : ?T2@{
+                                                 n0:=0}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4 ;;; 
+    n1 : nat}  Number of equations: 1  Equations:          
+    _,_,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_3 : ?T2@{n0:=S n1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d
+ -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"
+1                                         
+     : nat
+10
+     : nat
+11
+     : nat
+STARTING MARCHING...
+Entering compile_cases...
+Preparing the return pred context
+Return pred context: (x:Ind(nat,0))
+Inverted return pred: (Ind(option,0) Ind(byte,0))
+Inveted return pred generalized: (Ind(option,0) Ind(byte,0))
+Entering compile_loop...Exiting compile_cases...
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        _ => ???
+        S(S(O()as_)as_)as_ => ???
+        S(O()as_)as_ => ???
+        O()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={?y0 : ?T0 ;;; n : nat}  Number of equations: 3  Equations:
+        _,_ => ???     _,S(O()as_)as_ => ???
+        _,O()as_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=1} ;;; _ANONYMOUS_REL_2 : ?T2@{
+                                                 n0:=0}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4 ;;; 
+    n1 : nat}  Number of equations: 1  Equations:          
+    _,_,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; ?y4 : ?T4}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)} ;;; 
+    _ANONYMOUS_REL_3 : ?T2@{n0:=S n1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d
+ -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"
+1                                         
+     : nat
+10
+     : nat
+11
+     : nat
+STARTING MARCHING...
+Entering compile_cases...
+Preparing the return pred context
+Return pred context: (x:Ind(nat,0))
+Inverted return pred: (Ind(option,0) Ind(byte,0))
+Inveted return pred generalized: (Ind(option,0) Ind(byte,0))
+Entering compile_loop...Exiting compile_cases...
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        O()as_ => ???
+        S(O()as_)as_ => ???
+        S(S(O()as_)as_)as_ => ???
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={n : nat ;;; ?y0 : ?T0}  Number of equations: 3  Equations:
+        O()as_,_ => ???
+        S(O()as_)as_,_ => ???     
+    _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T2@{n0:=0} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={n1 : nat ;;; ?y4 : ?T4 ;;; _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={?y4 : ?T4 ;;; _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d
+ -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"
+1                                         
+     : nat
+10
+     : nat
+11
+     : nat
+STARTING MARCHING...
+Entering compile_cases...
+Preparing the return pred context
+Return pred context: (x:Ind(nat,0))
+Inverted return pred: (Ind(option,0) Ind(byte,0))
+Inveted return pred generalized: (Ind(option,0) Ind(byte,0))
+
+Entering compile_loop...Exiting compile_cases...
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        O()as_ => ???
+        S(O()as_)as_ => ???
+        S(S(O()as_)as_)as_ => ???
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n : nat ;;; ?y0 : ?T0}  Number of equations: 3  Equations:
+        O()as_,_ => ???
+        S(O()as_)as_,_ => ???     
+    _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM with empty second pattern
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    2-PROBLEM WITH ANONYMOUS PATTERN
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T2@{n0:=0} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably inversion 2-PROBLEM
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n1 : nat ;;; ?y4 : ?T4 ;;; _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={?y4 : ?T4 ;;; _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    Probably a trivial 1-problem
+Exiting compile_loop...
+
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d
+ -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"
+1                                         
+     : nat
+10
+     : nat
+11
+     : nat
+STARTING MARCHING...
+Entering compile_cases...
+Preparing the return pred context
+Return pred context: (x:Ind(nat,0))
+Inverted return pred: (Ind(option,0) Ind(byte,0))
+Inveted return pred generalized: (Ind(option,0) Ind(byte,0))
+
+Entering compile_loop...Exiting compile_cases...
+Problem:
+    tomatches={x : nat}  Number of equations: 4  Equations:
+        O()as_ => ???
+        S(O()as_)as_ => ???
+        S(S(O()as_)as_)as_ => ???
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_1 : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 2  Equations:          
+     => ???      => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={?y : ?T}  Number of equations: 2  Equations:
+        _ => ???     _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n : nat ;;; ?y0 : ?T0}  Number of equations: 3  Equations:
+        O()as_,_ => ???
+        S(O()as_)as_,_ => ???     
+    _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 2  Equations:          
+     => ???      => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={?y1 : ?T1 ;;; _ANONYMOUS_REL_1 : ?T0@{n:=0}}  Number of equations: 2  Equations:
+        _,_ => ???     _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T0@{n:=0}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n0 : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n0 : nat ;;; ?y2 : ?T2 ;;; _ANONYMOUS_REL_1 : ?T0@{n:=S n0}}  Number of equations: 2  Equations:
+        O()as_,_,_ => ???     _,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 2  Equations:          
+     => ???      => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={?y3 : ?T3 ;;; _ANONYMOUS_REL_1 : ?T2@{n0:=0} ;;; 
+    _ANONYMOUS_REL_2 : ?T0@{n:=1}}  Number of equations: 2  Equations:
+        _,_,_ => ???     _,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_2 : ?T2@{n0:=0} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_4 : ?T0@{n:=1}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n1 : nat}  Number of equations: 2  Equations:
+        _ => ???     small_inversion_any_var => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={n1 : nat ;;; ?y4 : ?T4 ;;; _ANONYMOUS_REL_1 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_2 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={?y4 : ?T4 ;;; _ANONYMOUS_REL_2 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_3 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_3 : ?T2@{n0:=S n1} ;;; 
+    _ANONYMOUS_REL_4 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _,_ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={_ANONYMOUS_REL_5 : ?T0@{n:=S (S n1)}}  Number of equations: 1  Equations:
+        _ => ???
+Exiting compile_loop...
+
+
+Entering compile_loop...Problem:
+    tomatches={}  Number of equations: 1  Equations:           => ???
+Exiting compile_loop...
+
+ALMOST ENDED MATCHING...
+13
+     : nat
+of_nat =
+fun x : nat =>
+match x with
+| 0 => Some "000"%byte
+| S n =>
+    match n with
+    | 0 => Some "001"%byte
+    | S n0 => match n0 with
+              | 0 => Some "002"%byte
+              | S _ => None
+              end
+    end
+end
+     : nat -> option byte
+
+Arguments of_nat x%nat_scope
+File "./theories/Strings/Byte.v", line 586, characters 21-32:
+Error: Unable to unify "Some "003"%byte" with "of_nat (to_nat "003")".
+
+blume@blumer-pipa:~/tmp/coq$ dune build coq-core.install && _build/install/default/bin/coqc theories/Strings/Byte.v 2>&1 | se
+d -e "s/Constr(nat,0,2)/S/g" -e "s/Constr(nat,0,1)/O/g"
+blume@blumer-pipa:~/tmp/coq$ rm blume.org 
+blume@blumer-pipa:~/tmp/coq$ 

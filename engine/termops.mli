@@ -293,6 +293,8 @@ val pr_metaset : Metaset.t -> Pp.t
 val pr_evar_universe_context : UState.t -> Pp.t
 val pr_evd_level : evar_map -> Univ.Level.t -> Pp.t
 
+val print_env_short : env -> Evd.evar_map -> Pp.t
+
 module Internal : sig
 
 (** NOTE: to print terms you always want to use functions in
